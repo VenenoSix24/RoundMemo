@@ -47,7 +47,7 @@ export interface AdminSession {
 
 export interface AdminPhoto {
   id: number
-  album_id: number
+  album_ids: number[]
   sha256: string
   width: number | null
   height: number | null
@@ -71,7 +71,8 @@ export interface ImportResult {
 async function adminReq<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: 'same-origin',
-    headers: init?.body ? { 'Content-Type': 'application/json' } : undefined,
+    // 仅 JSON 字符串 body 才设 Content-Type；FormData 交给浏览器带 multipart 边界
+    headers: typeof init?.body === 'string' ? { 'Content-Type': 'application/json' } : undefined,
     ...init,
   })
   if (!res.ok) {
@@ -90,13 +91,13 @@ async function adminReq<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-// XHR 上传（fetch 无上传进度）：返回解码后的导入结果。
-export function uploadPhotos(albumId: number, files: File[], onProgress: (pct: number) => void): Promise<{ results: ImportResult[] }> {
+// XHR 上传到照片池（fetch 无上传进度）：返回解码后的导入结果。
+export function uploadPhotos(files: File[], onProgress: (pct: number) => void): Promise<{ results: ImportResult[] }> {
   return new Promise((resolve, reject) => {
     const fd = new FormData()
     files.forEach((f) => fd.append('file', f))
     const xhr = new XMLHttpRequest()
-    xhr.open('POST', `/api/admin/albums/${albumId}/photos`)
+    xhr.open('POST', '/api/admin/photos')
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
     }
@@ -141,10 +142,31 @@ export const adminApi = {
     adminReq<AdminAlbum>(`/api/admin/albums/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteAlbum: (id: number) => adminReq<void>(`/api/admin/albums/${id}`, { method: 'DELETE' }),
   albumPhotos: (albumId: number) => adminReq<{ photos: AdminPhoto[] }>(`/api/admin/albums/${albumId}/photos`),
+  attachPhotos: (albumId: number, photoIds: number[]) =>
+    adminReq<{ attached: number }>(`/api/admin/albums/${albumId}/photos`, { method: 'POST', body: JSON.stringify({ photo_ids: photoIds }) }),
+  detachPhoto: (albumId: number, photoId: number) =>
+    adminReq<void>(`/api/admin/albums/${albumId}/photos/${photoId}`, { method: 'DELETE' }),
   setCover: (albumId: number, photoId: number) =>
     adminReq<{ ok: boolean }>(`/api/admin/albums/${albumId}/cover`, { method: 'POST', body: JSON.stringify({ photo_id: photoId }) }),
   updatePhoto: (photoId: number, patch: Record<string, unknown>) =>
     adminReq<AdminPhoto>(`/api/admin/photos/${photoId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+  // 照片
+  allPhotos: () => adminReq<{ photos: AdminPhoto[] }>('/api/admin/photos'),
+  deletePhoto: (id: number) => adminReq<void>(`/api/admin/photos/${id}`, { method: 'DELETE' }),
+
+  // 站点设置
+  settings: () => adminReq<{ site_title: string; has_favicon: boolean }>('/api/settings'),
+  putSettings: (siteTitle: string) =>
+    adminReq<{ site_title: string; has_favicon: boolean }>('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ site_title: siteTitle }),
+    }),
+  uploadFavicon: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return adminReq<{ site_title: string; has_favicon: boolean }>('/api/admin/settings/favicon', { method: 'POST', body: fd })
+  },
 
   // 账号
   account: (body: { current_password: string; username?: string; password?: string }) =>
@@ -177,11 +199,11 @@ export const adminApi = {
   grantSessions: (grantId: number) => adminReq<{ sessions: AdminSession[] }>(`/api/admin/grants/${grantId}/sessions`),
   deleteSession: (sid: string) => adminReq<void>(`/api/admin/sessions/${sid}`, { method: 'DELETE' }),
 
-  // 导入
-  importLocal: (path: string, albumId: number) =>
+  // 导入（进照片池）
+  importLocal: (path: string) =>
     adminReq<{ results: ImportResult[] }>('/api/admin/import/local', {
       method: 'POST',
-      body: JSON.stringify({ path, album_id: albumId }),
+      body: JSON.stringify({ path }),
     }),
   uploadPhotos,
 }

@@ -18,7 +18,7 @@ export interface Album {
 
 export interface Photo {
   id: number
-  album_id: number
+  album_ids: number[]
   sha256: string
   width: number | null
   height: number | null

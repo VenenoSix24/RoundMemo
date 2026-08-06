@@ -14,6 +14,9 @@
   --accent-press: #cfab58;
   --accent-on: #1a1407;
 
+  /* 品牌金（可读文本金）：浅底用深金保对比，深底换亮金 */
+  --brand-gold: #b0851f;
+
   /* —— 辅色：青蓝（交互/链接）—— */
   --secondary: #3f88b8;
 
@@ -79,6 +82,7 @@
 
     --accent-soft: rgba(232, 195, 111, 0.16);
     --secondary: #6fb8e8;
+    --brand-gold: #e8c36f; /* 深底亮金，暖金不变但提亮保证对比 */
 
     /* —— 文字（深色底）—— */
     --text-primary: #f2f0ec;

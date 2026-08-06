@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -97,6 +98,35 @@ func SessionCoversAlbum(db *sql.DB, sid string, albumID int64, now int64) (bool,
 		  AND (g.expires_at IS NULL OR g.expires_at > ?)
 		  AND (g.max_uses IS NULL OR g.used_count < g.max_uses)`,
 		sid, albumID, now).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+// SessionCoversAnyAlbum 判断会话能否访问给定相册中的任一个（照片可见性用，
+// 照片池模型中一张照片可能同时属于多个相册）。
+func SessionCoversAnyAlbum(db *sql.DB, sid string, albumIDs []int64, now int64) (bool, error) {
+	if len(albumIDs) == 0 {
+		return false, nil
+	}
+	placeholders := strings.Repeat("?,", len(albumIDs))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := []any{sid}
+	for _, id := range albumIDs {
+		args = append(args, id)
+	}
+	args = append(args, now)
+	var n int
+	err := db.QueryRow(`
+		SELECT COUNT(1) FROM session_grants sg
+		JOIN grants g ON g.id = sg.grant_id
+		JOIN group_albums ga ON ga.group_id = g.group_id
+		WHERE sg.session_id = ? AND ga.album_id IN (`+placeholders+`)
+		  AND g.enabled = 1 AND g.revoked_at IS NULL
+		  AND (g.expires_at IS NULL OR g.expires_at > ?)
+		  AND (g.max_uses IS NULL OR g.used_count < g.max_uses)`,
+		args...).Scan(&n)
 	if err != nil {
 		return false, err
 	}

@@ -10,12 +10,14 @@ import { fmtDate } from './album'
 // （上一张/计数/下一张 + 陀螺仪/重置）1.5s 无操作淡出。
 export async function renderViewer(photoIdStr: string): Promise<void> {
   const photoId = Number(photoIdStr)
+  let albumId = Number(new URLSearchParams(location.search).get('album')) || 0
   let photo: Photo
   let album: Album
   let photos: Photo[]
   try {
     photo = await api.photo(photoId)
-    const r = await api.album(photo.album_id)
+    if (!albumId) albumId = photo.album_ids[0] ?? 0
+    const r = await api.album(albumId)
     album = r.album
     photos = r.photos
   } catch {
@@ -31,7 +33,15 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     h('span', { class: 'spinner', 'aria-hidden': 'true' }),
     h('span', {}, '全景加载中'),
   ])
-  root.append(canvas, loading)
+  // 首张加载的整屏入场动画：等纹理加载完再淡出，避免黑屏 + UI 先弹出的割裂感
+  const enter = h('div', { class: 'viewer-enter', role: 'status', 'aria-live': 'polite' }, [
+    h('div', { class: 'viewer-enter-brand' }, [
+      h('span', { class: 'font-accent viewer-enter-name' }, '圆忆'),
+      h('span', { class: 'viewer-enter-sub' }, '正在进入这个时刻'),
+    ]),
+    h('span', { class: 'spinner viewer-enter-spinner', 'aria-hidden': 'true' }),
+  ])
+  root.append(canvas, loading, enter)
 
   // —— 底部控制胶囊 ——
   const counter = h('span', { class: 'viewer-counter' }, '')
@@ -65,15 +75,25 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   // 先挂载再创建查看器：容器已有真实尺寸，画布初始宽高才正确。
   const viewer = new PanoramaViewer(root, canvas)
 
+  let loadTimer = 0
+  function beginLoad(sha: string): Promise<void> {
+    // 已缓存则无加载过程；未缓存延迟 150ms 再亮提示，快载入不闪烁
+    if (viewer.isLoaded(sha)) return viewer.load(sha)
+    loadTimer = window.setTimeout(() => loading.classList.add('is-shown'), 150)
+    return viewer.load(sha).finally(() => {
+      window.clearTimeout(loadTimer)
+      loading.classList.remove('is-shown')
+    })
+  }
+
   function goTo(i: number): void {
     if (i < 0 || i >= photos.length) return
     index = i
     const p = photos[i]
-    history.replaceState(null, '', `/p/${p.id}`)
+    history.replaceState(null, '', `/p/${p.id}?album=${albumId}`)
     updateCounter()
     updateInfo(p)
-    loading.classList.add('is-shown')
-    void viewer.load(p.sha256).finally(() => loading.classList.remove('is-shown'))
+    void beginLoad(p.sha256)
   }
 
   function updateCounter(): void {
@@ -97,22 +117,27 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   }
 
   // —— 控件 idle 淡出（仅底部胶囊，左上信息常驻；尊重 reduced-motion）——
+  // 鼠标悬停在工具栏上时不隐藏（悬停期间常驻），移出后再计时隐藏。
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   let idleTimer = 0
-  const showControls = () => {
-    root.classList.add('controls-visible')
+  const hideAfterIdle = () => {
     if (reduced) return
     window.clearTimeout(idleTimer)
-    idleTimer = window.setTimeout(() => root.classList.remove('controls-visible'), 1500)
+    idleTimer = window.setTimeout(() => {
+      if (pill.matches(':hover')) return // 鼠标仍在工具栏上：保持常驻
+      root.classList.remove('controls-visible')
+    }, 1500)
+  }
+  const showControls = () => {
+    root.classList.add('controls-visible')
+    hideAfterIdle()
   }
   if (!reduced) {
     window.addEventListener('mousemove', showControls)
     window.addEventListener('touchstart', showControls)
-    root.classList.add('controls-visible')
-    idleTimer = window.setTimeout(() => root.classList.remove('controls-visible'), 1500)
-  } else {
-    root.classList.add('controls-visible')
+    pill.addEventListener('mouseleave', showControls) // 移出工具栏立即重新计时
   }
+  showControls()
 
   // —— 键盘切换（与查看器共用 window keydown，键位不冲突）——
   const onKey = (e: KeyboardEvent) => {
@@ -123,13 +148,16 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   updateCounter()
   updateInfo(photo)
-  loading.classList.add('is-shown')
-  void viewer
-    .load(photos[index].sha256)
+  // 首张：未缓存则显示整屏入场动画，等纹理加载完再淡出
+  if (!viewer.isLoaded(photos[index].sha256)) enter.classList.add('is-shown')
+  void beginLoad(photos[index].sha256)
     .catch(() => {
       /* 图片加载失败：保持深色底，不阻断 */
     })
-    .finally(() => loading.classList.remove('is-shown'))
+    .finally(() => {
+      enter.classList.add('is-done')
+      window.setTimeout(() => enter.remove(), 500)
+    })
 
   // 页面卸载时释放 WebGL 上下文
   window.addEventListener('pagehide', dispose)
@@ -137,6 +165,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     window.removeEventListener('keydown', onKey)
     window.removeEventListener('mousemove', showControls)
     window.removeEventListener('touchstart', showControls)
+    pill.removeEventListener('mouseleave', showControls)
     window.removeEventListener('pagehide', dispose)
     viewer.dispose()
   }

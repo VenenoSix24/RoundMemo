@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"image/color"
 	"mime/multipart"
 	"net/http"
@@ -29,7 +28,7 @@ func testJPEG(t *testing.T, w, h int) []byte {
 	return buf.Bytes()
 }
 
-func uploadPhoto(t *testing.T, s *Server, cookie string, albumID int, img []byte) *httptest.ResponseRecorder {
+func uploadPhoto(t *testing.T, s *Server, cookie string, _ int, img []byte) *httptest.ResponseRecorder {
 	t.Helper()
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
@@ -42,7 +41,8 @@ func uploadPhoto(t *testing.T, s *Server, cookie string, albumID int, img []byte
 	}
 	mw.Close()
 
-	req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/admin/albums/%d/photos", albumID), &buf)
+	// 照片池模型：上传一律进池，albumID 参数保留仅兼容旧调用
+	req := httptest.NewRequest(http.MethodPost, "/api/admin/photos", &buf)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("Cookie", cookie)
 	rr := httptest.NewRecorder()
@@ -71,12 +71,22 @@ func TestPhotoUploadDedup(t *testing.T) {
 		t.Fatalf("重复上传应 duplicate, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	photos, err := store.ListPhotosByAlbum(db, 1)
+	photos, err := store.ListAllPhotos(db)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(photos) != 1 {
-		t.Fatalf("去重后应只有 1 张照片, got %d", len(photos))
+		t.Fatalf("去重后照片池应只有 1 张照片, got %d", len(photos))
+	}
+	if err := store.AddPhotosToAlbum(db, 1, []int64{photos[0].ID}); err != nil {
+		t.Fatal(err)
+	}
+	albumPhotos, err := store.ListAlbumPhotos(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(albumPhotos) != 1 {
+		t.Fatalf("相册挂接后应 1 张, got %d", len(albumPhotos))
 	}
 
 	// 验证存储布局：原图 + 两档缩略图均落盘（开发文档 §8.1 路径约定）
@@ -111,14 +121,19 @@ func TestPhotoUploadBadImage(t *testing.T) {
 	}
 }
 
-func TestPhotoUploadUnknownAlbum(t *testing.T) {
+func TestPhotoUploadToPool(t *testing.T) {
 	s, db := newTestServer(t)
 	seedOwner(t, db, "admin", "correct-password")
 	cookie := loginOwner(t, s, "admin", "correct-password")
 
-	rr := uploadPhoto(t, s, cookie, 999, testJPEG(t, 100, 100))
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("上传到不存在相册应 404, got %d", rr.Code)
+	// 照片池模型：上传不依赖任何相册，直接进池
+	rr := uploadPhoto(t, s, cookie, 0, testJPEG(t, 100, 100))
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"added"`) {
+		t.Fatalf("上传进池应 200 added, got %d: %s", rr.Code, rr.Body.String())
+	}
+	photos, err := store.ListAllPhotos(db)
+	if err != nil || len(photos) != 1 {
+		t.Fatalf("照片池应 1 张, got %d err=%v", len(photos), err)
 	}
 }
 

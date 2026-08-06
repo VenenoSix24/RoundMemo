@@ -2,25 +2,13 @@ import { adminApi, uploadPhotos, type ImportResult } from '../../api/admin'
 import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
 
-// 导入：本地上传（带进度）+ 服务器目录批量导入。结果统一为文件名 + 状态列表。
-export async function renderAdminImport(main: HTMLElement): Promise<void> {
-  const albums = (await adminApi.albums()).albums
-  if (!albums.length) {
-    main.replaceChildren(h('div', { class: 'admin-empty' }, [
-      h('p', { class: 'font-accent admin-empty-title' }, '还没有相册'),
-      h('p', { class: 'text-muted' }, '先去「相册」页建一个，再回来导入照片'),
-    ]))
-    return
-  }
-
-  const albumSel = h('select', { class: 'admin-input', 'aria-label': '目标相册' }, albums.map((a) => h('option', { value: String(a.id) }, a.title)))
-  const albumId = () => Number(albumSel.value)
-
+// 导入区块（设置页内嵌）：本地上传（带进度）+ 服务器目录批量导入，一律进照片池。
+export async function renderImportSection(container: HTMLElement): Promise<void> {
   // —— 上传区 ——
   const uploadZone = h('div', { class: 'import-dropzone', tabindex: '0', role: 'button', 'aria-label': '选择照片上传' }, [
     icon('upload', 28),
     h('p', { class: 'import-drop-hint' }, '拖拽照片到这里，或点击选择'),
-    h('p', { class: 'import-drop-sub text-muted' }, '支持 jpg / png / webp，可多选'),
+    h('p', { class: 'import-drop-sub text-muted' }, '支持 jpg / png / webp，可多选；上传后进入照片池'),
   ])
   const fileInput = h('input', { type: 'file', class: 'import-file', multiple: true, accept: 'image/*', 'aria-hidden': 'true' })
   const uploadProgress = h('div', { class: 'import-progress', 'aria-hidden': 'true' }, [h('div', { class: 'import-progress-bar', 'data-el': 'upBar' })])
@@ -31,7 +19,7 @@ export async function renderAdminImport(main: HTMLElement): Promise<void> {
     if (uploading || !files.length) return
     uploading = true
     setProgress(0, '')
-    void uploadPhotos(albumId(), files, (pct) => setProgress(pct, `上传中 ${pct}%`))
+    void uploadPhotos(files, (pct) => setProgress(pct, `上传中 ${pct}%`))
       .then(({ results }) => {
         uploading = false
         setProgress(100, '')
@@ -68,7 +56,7 @@ export async function renderAdminImport(main: HTMLElement): Promise<void> {
     dirErr.textContent = ''
     dirBtn.disabled = true
     try {
-      const { results } = await adminApi.importLocal(p, albumId())
+      const { results } = await adminApi.importLocal(p)
       appendResults(results)
     } catch (e) {
       dirErr.textContent = e instanceof Error ? e.message : '导入失败'
@@ -78,11 +66,8 @@ export async function renderAdminImport(main: HTMLElement): Promise<void> {
   }
 
   // —— 结果 ——
-  const resultsHead = h('div', { class: 'import-results-head' }, [
-    h('h3', { class: 'admin-section-title' }, '导入结果'),
-    h('span', { class: 'import-results-count text-muted', 'data-el': 'resCount' }, ''),
-  ])
   const resultsList = h('ul', { class: 'import-results' })
+  const resultsCount = h('span', { class: 'import-results-count text-muted', 'data-el': 'resCount' }, '')
   function appendResults(results: ImportResult[]): void {
     results.forEach((r) => {
       const st = r.status === 'added' ? '已导入' : r.status === 'duplicate' ? '已存在（跳过）' : '失败'
@@ -91,36 +76,28 @@ export async function renderAdminImport(main: HTMLElement): Promise<void> {
         h('span', { class: 'import-result-status' }, r.error ?? st),
       ]))
     })
-    const count = resultsList.children.length
-    resultsHead.querySelector('[data-el="resCount"]')!.textContent = `共 ${count} 个`
+    resultsCount.textContent = `共 ${resultsList.children.length} 个`
   }
 
-  const uploadCard = h('section', { class: 'glass admin-card import-upload-card' }, [
-    h('h3', { class: 'admin-card-title' }, '本地上传'),
+  const uploadCard = h('div', { class: 'settings-block' }, [
+    h('h4', { class: 'settings-block-title' }, '本地上传'),
     uploadZone,
     fileInput,
     h('div', { class: 'import-progress-wrap' }, [uploadProgress, uploadLabel]),
   ])
 
-  const dirCard = h('section', { class: 'glass admin-card import-dir-card' }, [
-    h('h3', { class: 'admin-card-title' }, '服务器目录导入'),
+  const dirCard = h('div', { class: 'settings-block' }, [
+    h('h4', { class: 'settings-block-title' }, '服务器目录导入'),
     h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '目录路径'), dirPath]),
     dirErr,
     dirBtn,
-    h('p', { class: 'import-dir-hint text-muted' }, '适合一次性放入几十张。EXIF 会自动解析，文件名带时间戳的会兜底补拍摄时间。'),
+    h('p', { class: 'import-dir-hint text-muted' }, '适合一次性放入几十张。EXIF 自动解析，文件名带时间戳的会兜底补拍摄时间。'),
   ])
 
-  const resultsCard = h('section', { class: 'admin-card import-results-card' }, [resultsHead, resultsList])
+  const resultsCard = h('div', { class: 'settings-block' }, [
+    h('div', { class: 'import-results-head' }, [h('h4', { class: 'settings-block-title' }, '导入结果'), resultsCount]),
+    resultsList,
+  ])
 
-  main.replaceChildren(
-    h('div', { class: 'admin-section-head' }, [
-      h('div', {}, [
-        h('h2', { class: 'admin-section-title' }, '导入照片'),
-        h('p', { class: 'admin-section-desc text-muted' }, '两种方式任选，重复照片按内容自动去重。'),
-      ]),
-      h('label', { class: 'admin-field-inline' }, [h('span', { class: 'admin-form-label' }, '目标相册'), albumSel]),
-    ]),
-    h('div', { class: 'import-grid' }, [uploadCard, dirCard]),
-    resultsCard,
-  )
+  container.append(uploadCard, dirCard, resultsCard)
 }

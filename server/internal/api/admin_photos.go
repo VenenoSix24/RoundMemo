@@ -31,21 +31,8 @@ type importResult struct {
 	Error    string `json:"error,omitempty"`
 }
 
+// handleUploadPhotos 上传到照片池（相册由 album_photos 手动挑选组成）。
 func (s *Server) handleUploadPhotos(w http.ResponseWriter, r *http.Request) {
-	albumID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "无效的相册 id")
-		return
-	}
-	if _, err := store.GetAlbum(s.db, albumID); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "相册不存在")
-			return
-		}
-		s.internalError(w, err)
-		return
-	}
-
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -68,15 +55,15 @@ func (s *Server) handleUploadPhotos(w http.ResponseWriter, r *http.Request) {
 			part.Close()
 			continue
 		}
-		results = append(results, s.importStream(albumID, filename, part))
+		results = append(results, s.importStream(filename, part))
 		part.Close()
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
 }
 
 // importStream 处理单张图片：流式落临时文件 → sha256 → EXIF → 缩略图 →
-// 去重 → 落存储 → 写库。逐文件顺序执行，控制 1H1G 的瞬时内存峰值。
-func (s *Server) importStream(albumID int64, filename string, r io.Reader) importResult {
+// 去重 → 落存储 → 写池。逐文件顺序执行，控制 1H1G 的瞬时内存峰值。
+func (s *Server) importStream(filename string, r io.Reader) importResult {
 	fail := func(err error) importResult {
 		return importResult{Filename: filename, Status: "error", Error: err.Error()}
 	}
@@ -116,7 +103,6 @@ func (s *Server) importStream(albumID int64, filename string, r io.Reader) impor
 	md := media.ParseEXIF(tmp)
 
 	photo := &store.Photo{
-		AlbumID:     albumID,
 		StorageKey:  storage.KeyFor(sum),
 		SHA256:      sum,
 		ByteSize:    size,
@@ -158,7 +144,6 @@ func (s *Server) importStream(albumID int64, filename string, r io.Reader) impor
 		id := created.ID
 		return importResult{Filename: filename, Status: "duplicate", PhotoID: &id}
 	}
-	_ = store.SetAlbumCover(s.db, albumID, created.ID)
 
 	id := created.ID
 	return importResult{Filename: filename, Status: "added", PhotoID: &id}
@@ -190,7 +175,7 @@ func (s *Server) writeStorage(photo *store.Photo, raw io.Reader, info *media.Ima
 		bytes.NewReader(info.List), int64(len(info.List)))
 }
 
-// handleListAlbumPhotos 后台相册照片列表（含 filename，供信息管理与封面设置）。
+// handleListAlbumPhotos 后台相册照片列表（照片池 → 相册的挂接视图）。
 func (s *Server) handleListAlbumPhotos(w http.ResponseWriter, r *http.Request) {
 	albumID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err != nil {
@@ -201,16 +186,78 @@ func (s *Server) handleListAlbumPhotos(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "相册不存在")
 		return
 	}
-	photos, err := store.ListPhotosByAlbum(s.db, albumID)
+	photos, err := store.ListAlbumPhotos(s.db, albumID)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	idsMap, err := s.albumIDsMap(photos)
 	if err != nil {
 		s.internalError(w, err)
 		return
 	}
 	out := make([]photoJSON, 0, len(photos))
 	for i := range photos {
-		out = append(out, toPhotoJSON(&photos[i]))
+		out = append(out, toPhotoJSON(&photos[i], idsMap[photos[i].ID]))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"photos": out})
+}
+
+// handleAttachPhotos 把照片池中的照片挂到相册（多选组成相册）。
+func (s *Server) handleAttachPhotos(w http.ResponseWriter, r *http.Request) {
+	albumID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "无效的相册 id")
+		return
+	}
+	if _, err := store.GetAlbum(s.db, albumID); err != nil {
+		writeError(w, http.StatusNotFound, "相册不存在")
+		return
+	}
+	var req struct {
+		PhotoIDs []int64 `json:"photo_ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+	if len(req.PhotoIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "photo_ids 不能为空")
+		return
+	}
+	if err := store.AddPhotosToAlbum(s.db, albumID, req.PhotoIDs); err != nil {
+		s.internalError(w, err)
+		return
+	}
+	// 相册还没封面则自动用第一张加入的
+	if err := store.SetAlbumCover(s.db, albumID, req.PhotoIDs[0]); err != nil {
+		s.internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"attached": len(req.PhotoIDs)})
+}
+
+// handleDetachPhoto 从相册移除照片（仅解引用，不删照片池中的原图）。
+func (s *Server) handleDetachPhoto(w http.ResponseWriter, r *http.Request) {
+	albumID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "无效的相册 id")
+		return
+	}
+	photoID, err := strconv.ParseInt(chi.URLParam(r, "photoId"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "无效的照片 id")
+		return
+	}
+	if err := store.RemovePhotoFromAlbum(s.db, albumID, photoID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "相册内不存在该照片")
+			return
+		}
+		s.internalError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleSetAlbumCover 手动设置相册封面（覆盖当前封面）。
@@ -235,13 +282,8 @@ func (s *Server) handleSetAlbumCover(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "相册不存在")
 		return
 	}
-	photo, err := store.GetPhoto(s.db, req.PhotoID)
-	if err != nil {
+	if _, err := store.GetPhoto(s.db, req.PhotoID); err != nil {
 		writeError(w, http.StatusNotFound, "照片不存在")
-		return
-	}
-	if photo.AlbumID != albumID {
-		writeError(w, http.StatusBadRequest, "照片不属于该相册")
 		return
 	}
 	if err := store.SetAlbumCoverForce(s.db, albumID, req.PhotoID); err != nil {

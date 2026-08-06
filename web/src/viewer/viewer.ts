@@ -2,6 +2,10 @@ import * as THREE from 'three'
 
 // 全景查看器：equirectangular 球面渲染 + 拖拽/滚轮/陀螺仪视角控制。
 // 渲染上下文在此封装（预留点 6），未来升 WebXR 只换会话创建方式。
+// 默认朝向偏移：用户反馈每张照片进入后的默认视角偏右 90°，
+// 正确正面应在当前默认（yaw=0）基础上向左转 90°。若方向反了改负号。
+const DEFAULT_YAW = Math.PI / 2
+
 export class PanoramaViewer {
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
@@ -12,13 +16,21 @@ export class PanoramaViewer {
   private dirty = true
 
   // 手动视角状态（陀螺仪关闭时生效）
-  private yaw = 0
+  private yaw = DEFAULT_YAW
   private pitch = 0
   private dragging = false
   private lastX = 0
   private lastY = 0
 
-  // 纹理 LRU：会话内最多缓存 3 张，来回切换不重解码（开发文档 §7.3）
+  // 重置朝向补间（可被拖动/二次重置中断）
+  private resetting = false
+  private resetRaf = 0
+
+  // 触控捏合：双指距离变化 → 缩放 FOV
+  private pointers = new Map<number, { x: number; y: number }>()
+  private pinchDist = 0
+
+  // 纹理 LRU：会话内最多缓存 6 张，相册内切换基本不重解码（开发文档 §7.3）
   private textureCache = new Map<string, THREE.Texture>()
 
   private resizeObserver: ResizeObserver
@@ -36,6 +48,7 @@ export class PanoramaViewer {
     this.scene.add(this.mesh)
 
     this.updateSize() // camera 已创建，可正确设置宽高比
+    this.applyManualView() // 构造时就把默认朝向（左移 90°）应用到相机，避免点进去仍是 0°
 
     this.bindPointer()
     this.bindKeyboard()
@@ -47,6 +60,11 @@ export class PanoramaViewer {
   }
 
   // —— 纹理加载 ——
+  // 是否已缓存该纹理：切换前据此决定是否显示加载提示（避免已缓存的快速切换闪提示）。
+  isLoaded(sha: string): boolean {
+    return this.textureCache.has(`/img/raw/${sha}`)
+  }
+
   load(sha: string): Promise<void> {
     const url = `/img/raw/${sha}`
     const cached = this.textureCache.get(url)
@@ -54,8 +72,8 @@ export class PanoramaViewer {
       this.applyTexture(cached)
       return Promise.resolve()
     }
-    // LRU：超过 3 张淘汰最久未用
-    if (this.textureCache.size >= 3) {
+    // LRU：超过 6 张淘汰最久未用
+    if (this.textureCache.size >= 6) {
       const oldest = this.textureCache.keys().next().value
       if (oldest) {
         this.textureCache.get(oldest)?.dispose()
@@ -90,27 +108,56 @@ export class PanoramaViewer {
         new THREE.MeshBasicMaterial({ map: oldMat.map, transparent: true, opacity: 1 }),
       )
       this.scene.add(overlay)
+      // 关键：先同步渲染一帧把新纹理上传到 GPU，再开始淡出计时。否则首次上传
+      // 阻塞主线程（全景约 113MB），start 采集过早，阻塞后首帧 t 已超 1，
+      // 过渡瞬间完成——即"第一次切图没动画，缓存后才有"。
+      this.renderer.render(this.scene, this.camera)
       const start = performance.now()
       const step = () => {
-        const t = Math.min(1, (performance.now() - start) / 300)
+        const t = Math.min(1, (performance.now() - start) / 450)
         ;(overlay.material as THREE.MeshBasicMaterial).opacity = 1 - t
         this.dirty = true // 关键：每帧标记脏，主循环才会重绘淡出过程
         if (t < 1) requestAnimationFrame(step)
         else this.scene.remove(overlay)
       }
       step()
+    } else {
+      // 兜底：立即渲染一帧，确保新纹理不依赖下一次滚动/拖拽才上屏
+      this.renderer.render(this.scene, this.camera)
     }
-    // 兜底：立即渲染一帧，确保新纹理不依赖下一次滚动/拖拽才上屏
-    this.renderer.render(this.scene, this.camera)
   }
 
   // —— 视角控制 ——
   resetView(): void {
     if (this.gyroOn) this.setGyro(false) // 先切回触摸（会同步当前朝向到 yaw/pitch）
-    this.yaw = 0
-    this.pitch = 0
-    this.applyManualView() // 之前只改 yaw/pitch 没应用到相机，导致点重置无反应
-    this.dirty = true
+    this.animateViewTo(DEFAULT_YAW, 0)
+  }
+
+  // 视角补间：从当前 yaw/pitch 缓动到目标（重置朝向用），任意拖动立即中断。
+  private animateViewTo(targetYaw: number, targetPitch: number): void {
+    if (this.resetting) {
+      cancelAnimationFrame(this.resetRaf)
+      this.resetting = false
+    }
+    const fromYaw = this.yaw
+    const fromPitch = this.pitch
+    // yaw 可越界环绕：取最短转向角，避免拉回时绕大圈
+    let dYaw = targetYaw - fromYaw
+    dYaw = ((dYaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI
+    const start = performance.now()
+    const dur = 450
+    this.resetting = true
+    const step = () => {
+      const t = Math.min(1, (performance.now() - start) / dur)
+      const e = 1 - Math.pow(1 - t, 3) // ease-out cubic
+      this.yaw = fromYaw + dYaw * e
+      this.pitch = fromPitch + (targetPitch - fromPitch) * e
+      this.applyManualView()
+      this.dirty = true // 关键：补间每帧标记脏，主循环才持续重绘
+      if (t < 1 && this.resetting) this.resetRaf = requestAnimationFrame(step)
+      else this.resetting = false
+    }
+    step()
   }
 
   setFov(fov: number): void {
@@ -169,6 +216,18 @@ export class PanoramaViewer {
   }
 
   private onPointerDown = (e: PointerEvent): void => {
+    if (this.resetting) {
+      cancelAnimationFrame(this.resetRaf)
+      this.resetting = false
+    }
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (this.pointers.size === 2) {
+      // 进入双指捏合：暂停单指拖拽
+      this.dragging = false
+      const [a, b] = [...this.pointers.values()]
+      this.pinchDist = Math.hypot(a.x - b.x, a.y - b.y)
+      return
+    }
     if (this.gyroOn) return
     this.dragging = true
     this.lastX = e.clientX
@@ -177,21 +236,34 @@ export class PanoramaViewer {
   }
 
   private onPointerMove = (e: PointerEvent): void => {
+    const p = this.pointers.get(e.pointerId)
+    if (!p) return
+    p.x = e.clientX
+    p.y = e.clientY
+    if (this.pointers.size === 2) {
+      const [a, b] = [...this.pointers.values()]
+      const d = Math.hypot(a.x - b.x, a.y - b.y)
+      if (this.pinchDist > 0) this.setFov(this.camera.fov - (d - this.pinchDist) * 0.16)
+      this.pinchDist = d
+      return
+    }
     if (!this.dragging || this.gyroOn) return
     const dx = e.clientX - this.lastX
     const dy = e.clientY - this.lastY
     this.lastX = e.clientX
     this.lastY = e.clientY
-    // 自然方向：视场随手指滑动（左滑看右、上滑看下），即"抓取世界"语义
-    this.yaw += dx * 0.005
-    this.pitch += dy * 0.005
+    // 灵敏度 0.003：比之前 0.005 低，拖/滑同样距离照片转动更慢、更好控制
+    this.yaw += dx * 0.003
+    this.pitch += dy * 0.003
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01)
     this.applyManualView()
     this.dirty = true
   }
 
-  private onPointerUp = (): void => {
-    this.dragging = false
+  private onPointerUp = (e: PointerEvent): void => {
+    this.pointers.delete(e.pointerId)
+    if (this.pointers.size < 2) this.pinchDist = 0
+    if (this.pointers.size === 0) this.dragging = false
   }
 
   private onWheel = (e: WheelEvent): void => {

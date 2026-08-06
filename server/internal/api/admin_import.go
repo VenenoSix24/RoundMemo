@@ -2,27 +2,23 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"roundmemo/internal/store"
 )
 
 var imageExts = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".webp": true,
 }
 
-// handleImportLocal 扫描服务器本地目录批量导入（开发文档 §8.1 便捷入口，
+// handleImportLocal 扫描服务器本地目录批量导入照片池（开发文档 §8.1 便捷入口，
 // 适合一次性放入几十张）。目录路径由 Owner 提供，属受信操作。
 func (s *Server) handleImportLocal(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Path    string `json:"path"`
-		AlbumID int64  `json:"album_id"`
+		Path string `json:"path"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "请求格式错误")
@@ -30,14 +26,6 @@ func (s *Server) handleImportLocal(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Path == "" {
 		writeError(w, http.StatusBadRequest, "path 不能为空")
-		return
-	}
-	if _, err := store.GetAlbum(s.db, req.AlbumID); err != nil {
-		if errors.Is(err, store.ErrNotFound) {
-			writeError(w, http.StatusNotFound, "相册不存在")
-			return
-		}
-		s.internalError(w, err)
 		return
 	}
 
@@ -55,7 +43,7 @@ func (s *Server) handleImportLocal(w http.ResponseWriter, r *http.Request) {
 			results = append(results, importResult{Filename: name, Status: "error", Error: err.Error()})
 			continue
 		}
-		results = append(results, s.importStream(req.AlbumID, name, fh))
+		results = append(results, s.importStream(name, fh))
 		fh.Close()
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})

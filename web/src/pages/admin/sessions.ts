@@ -3,24 +3,19 @@ import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
 import { confirmDialog, toast } from '../../components/modal'
 
-// 会话：某授权下仍在线的设备列表，可逐个下线（单设备吊销）。
-export async function renderAdminSessions(main: HTMLElement): Promise<void> {
+// 会话区块（设置页内嵌）：按授权列出在线设备，可逐个下线。
+export async function renderSessionsSection(container: HTMLElement): Promise<void> {
   const grants = (await adminApi.grants()).grants
-  const preselected = new URLSearchParams(location.search).get('grant')
   const groupName = (gid: number): string => `#${gid}`
 
   if (!grants.length) {
-    main.replaceChildren(h('div', { class: 'admin-empty' }, [
-      h('p', { class: 'font-accent admin-empty-title' }, '还没有授权'),
-      h('p', { class: 'text-muted' }, '先去「授权」页创建一个，再查看设备会话'),
-    ]))
+    container.append(h('p', { class: 'text-muted' }, '还没有授权，先去「授权」页创建，再查看设备会话'))
     return
   }
 
   const sel = h('select', { class: 'admin-input', 'aria-label': '选择授权' }, grants.map((g) =>
-    h('option', { value: String(g.id), selected: String(g.id) === preselected ? 'selected' : undefined }, `${g.label || '未命名'} · ${groupName(g.group_id)} · ${g.numeric_code}`),
+    h('option', { value: String(g.id) }, `${g.label || '未命名'} · ${groupName(g.group_id)} · ${g.numeric_code}`),
   ))
-
   const list = h('div', { class: 'session-list' })
   const empty = h('div', { class: 'admin-empty' }, [
     h('p', { class: 'font-accent admin-empty-title' }, '这个授权下没有在线会话'),
@@ -54,16 +49,7 @@ export async function renderAdminSessions(main: HTMLElement): Promise<void> {
   }
 
   sel.addEventListener('change', () => void load(Number(sel.value)))
-
-  const head = h('div', { class: 'admin-section-head' }, [
-    h('div', {}, [
-      h('h2', { class: 'admin-section-title' }, '在线会话'),
-      h('p', { class: 'admin-section-desc text-muted' }, '按授权查看设备，可单独下线某个设备。'),
-    ]),
-    sel,
-  ])
-
-  main.replaceChildren(head, list)
+  container.append(h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '选择授权'), sel]), list)
   await load(Number(sel.value))
 }
 

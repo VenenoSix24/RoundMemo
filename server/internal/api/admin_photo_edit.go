@@ -30,7 +30,7 @@ func (o *optionalField[T]) UnmarshalJSON(data []byte) error {
 
 type photoJSON struct {
 	ID          int64    `json:"id"`
-	AlbumID     int64    `json:"album_id"`
+	AlbumIDs    []int64  `json:"album_ids"`
 	SHA256      string   `json:"sha256"`
 	Width       *int     `json:"width"`
 	Height      *int     `json:"height"`
@@ -44,10 +44,10 @@ type photoJSON struct {
 	Filename    string   `json:"filename"`
 }
 
-func toPhotoJSON(p *store.Photo) photoJSON {
+func toPhotoJSON(p *store.Photo, albumIDs []int64) photoJSON {
 	return photoJSON{
 		ID:          p.ID,
-		AlbumID:     p.AlbumID,
+		AlbumIDs:    albumIDs,
 		SHA256:      p.SHA256,
 		Width:       p.Width,
 		Height:      p.Height,
@@ -60,6 +60,27 @@ func toPhotoJSON(p *store.Photo) photoJSON {
 		Description: p.Description,
 		Filename:    p.Filename,
 	}
+}
+
+// albumIDsMap 批量查询一组照片各自的所属相册，避免 N+1。
+func (s *Server) albumIDsMap(photos []store.Photo) (map[int64][]int64, error) {
+	out := map[int64][]int64{}
+	if len(photos) == 0 {
+		return out, nil
+	}
+	rows, err := s.db.Query(`SELECT photo_id, album_id FROM album_photos`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pid, aid int64
+		if err := rows.Scan(&pid, &aid); err != nil {
+			return nil, err
+		}
+		out[pid] = append(out[pid], aid)
+	}
+	return out, rows.Err()
 }
 
 // handleUpdatePhoto 编辑照片元数据：标题、描述、拍摄时间、GPS 坐标。
@@ -116,5 +137,10 @@ func (s *Server) handleUpdatePhoto(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toPhotoJSON(photo))
+	albumIDs, err := store.AlbumIDsForPhoto(s.db, photo.ID)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toPhotoJSON(photo, albumIDs))
 }

@@ -48,9 +48,10 @@
 }
 .admin-topbar {
   position: sticky;
-  top: 10px;
+  top: 12px;
   z-index: 20;
-  margin: 10px 12px 0;
+  margin: 16px auto 0;
+  max-width: 1140px; /* 与下方内容列对齐 */
   padding: 6px 10px 6px 16px;
   display: flex;
   align-items: center;
@@ -66,6 +67,7 @@
 .admin-brand {
   font-size: var(--fs-xl);
   font-weight: 600;
+  color: var(--brand-gold); /* 品牌金，与访客端顶栏一致 */
 }
 .admin-topbar-sep {
   color: var(--text-muted);
@@ -107,47 +109,81 @@
   font-weight: 500;
 }
 
-.admin-body {
-  display: flex;
-  gap: 0;
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 12px;
-}
+/* 顶栏居中 tab（桌面）：圆角分段样式，绝对居中 */
 .admin-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 168px;
-  flex-shrink: 0;
-  position: sticky;
-  top: calc(var(--nav-h) + 24px);
-  align-self: flex-start;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-glass);
 }
 .admin-nav-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: var(--r-md);
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   font-weight: 500;
+  white-space: nowrap;
   transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
 }
 .admin-nav-item:hover {
-  background: var(--bg-glass);
+  background: var(--bg-glass-strong);
   color: var(--text-primary);
 }
 .admin-nav-item.is-active {
   background: var(--accent-soft);
   color: var(--text-primary);
 }
+
 .admin-main {
-  flex: 1;
-  min-width: 0;
-  padding: 4px 4px 40px 20px;
+  max-width: 1140px; /* 稍宽：让照片卡操作按钮不换行 */
+  margin: 0 auto;
+  padding: 18px 16px calc(40px + env(safe-area-inset-bottom));
+}
+
+/* 移动端底部 dock（圆角悬浮液态玻璃）：复用访客 dock 视觉 */
+.admin-dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 30;
+  display: none;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.14);
+}
+.admin-dock .admin-nav-item {
+  flex-direction: column;
+  gap: 2px;
+  min-width: 60px;
+  padding: 6px 8px;
+  font-size: var(--fs-xs);
+}
+@media (min-width: 768px) {
+  .admin-dock {
+    display: none;
+  }
+}
+@media (max-width: 767px) {
+  .admin-nav {
+    display: none; /* 桌面居中 tab 移动端隐藏，由 dock 承担 */
+  }
+  .admin-dock {
+    display: flex;
+  }
 }
 
 /* —— 区块头 —— */
@@ -492,7 +528,7 @@
 }
 .admin-photo-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 .admin-photo-card {
@@ -505,7 +541,7 @@
 }
 .admin-photo-thumb {
   position: relative;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 2 / 1; /* 长方形，贴近全景比例（手机/桌面一致） */
   background: var(--bg-glass);
 }
 .admin-photo-thumb img {
@@ -547,6 +583,8 @@
 }
 .admin-photo-actions .btn-sm {
   flex: 1;
+  white-space: nowrap; /* 长按钮（如"设为封面"）不换行 */
+  padding: 0 10px;
 }
 
 /* —— 模态补充 —— */
@@ -555,6 +593,86 @@
 }
 .admin-form-hint {
   font-size: var(--fs-sm);
+}
+
+/* —— 照片池挑选器 —— */
+.picker-row {
+  gap: 10px;
+}
+.picker-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.picker-name {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* —— 设置页 —— */
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+.settings-block + .settings-block {
+  border-top: 1px solid var(--hairline);
+  padding-top: 14px;
+}
+.settings-block-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.settings-block-title {
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.settings-fav-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.settings-fav-status {
+  font-size: var(--fs-sm);
+}
+.settings-fav-status:empty {
+  display: none;
+}
+
+/* —— 照片页头部 —— */
+.admin-head-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* —— 相册内添加上传 —— */
+.admin-upload-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.admin-upload-inline .import-progress-text {
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
 }
 
 /* —— 导入 —— */
@@ -757,6 +875,12 @@
 }
 
 /* —— 响应式：桌面左抽屉 / 移动底部 tab —— */
+@media (min-width: 560px) {
+  .admin-photo-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (min-width: 768px) {
   .grant-keys {
     grid-template-columns: 1fr 1fr;
@@ -773,36 +897,8 @@
   .admin-topbar {
     margin: 8px;
   }
-  .admin-body {
-    flex-direction: column;
-    padding: 8px;
-    padding-bottom: 84px;
-  }
-  .admin-nav {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: auto;
-    z-index: 30;
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-around;
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid var(--border);
-  }
-  .admin-nav-item {
-    flex-direction: column;
-    gap: 2px;
-    width: auto;
-    padding: 6px 12px;
-    font-size: var(--fs-xs);
-  }
   .admin-main {
-    padding: 4px 0 24px;
+    padding: 12px 10px calc(96px + env(safe-area-inset-bottom));
   }
   .admin-section-head {
     align-items: stretch;

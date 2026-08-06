@@ -87,14 +87,19 @@ func (s *Server) handleVisitorAlbum(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "不存在")
 		return
 	}
-	photos, err := store.ListPhotosByAlbum(s.db, id)
+	photos, err := store.ListAlbumPhotos(s.db, id)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	idsMap, err := s.albumIDsMap(photos)
 	if err != nil {
 		s.internalError(w, err)
 		return
 	}
 	out := make([]photoJSON, 0, len(photos))
 	for i := range photos {
-		out = append(out, toPhotoJSON(&photos[i]))
+		out = append(out, toPhotoJSON(&photos[i], idsMap[photos[i].ID]))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"album": toAlbumJSON(album), "photos": out})
 }
@@ -116,7 +121,12 @@ func (s *Server) handleVisitorPhoto(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "不存在")
 		return
 	}
-	ok, err := store.SessionCoversAlbum(s.db, sess.SID, photo.AlbumID, time.Now().Unix())
+	albumIDs, err := store.AlbumIDsForPhoto(s.db, photo.ID)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	ok, err := store.SessionCoversAnyAlbum(s.db, sess.SID, albumIDs, time.Now().Unix())
 	if err != nil {
 		s.internalError(w, err)
 		return
@@ -125,7 +135,7 @@ func (s *Server) handleVisitorPhoto(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "不存在")
 		return
 	}
-	writeJSON(w, http.StatusOK, toPhotoJSON(photo))
+	writeJSON(w, http.StatusOK, toPhotoJSON(photo, albumIDs))
 }
 
 // handleVisitorTimeline 返回会话可见的所有照片，按拍摄时间升序。
@@ -159,8 +169,13 @@ func (s *Server) handleVisitorTimeline(w http.ResponseWriter, r *http.Request) {
 			s.internalError(w, err)
 			return
 		}
+		idsMap, err := s.albumIDsMap(list)
+		if err != nil {
+			s.internalError(w, err)
+			return
+		}
 		for i := range list {
-			photos = append(photos, toPhotoJSON(&list[i]))
+			photos = append(photos, toPhotoJSON(&list[i], idsMap[list[i].ID]))
 		}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"photos": photos})
