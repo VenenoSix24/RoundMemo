@@ -5,6 +5,9 @@
 listen = "127.0.0.1:8787"
 # 对外域名，用于生成分享链接；本地开发可保持占位，部署时替换为真实域名
 public_base_url = "https://pano.example.com"
+# 会话 cookie 是否带 Secure 标记。生产（HTTPS）必须 true；
+# 本地 http://127.0.0.1 调试改 false，否则浏览器拒收 cookie
+secure_cookies = true
 
 [storage]
 kind = "fs"
@@ -18,4 +21,5 @@ path = ""
 [security]
 code_rate_per_hour = 10      # 口令尝试限流：每 IP 每小时（开发文档 §6.4）
 session_ttl_days = 30        # 访客会话默认有效期（天）
+admin_session_ttl_days = 7   # Owner 管理会话有效期（天）
 img_sig_ttl_seconds = 300    # 图片分发签名有效期（秒）

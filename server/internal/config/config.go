@@ -17,6 +17,9 @@ type Config struct {
 type ServerConfig struct {
 	Listen        string `toml:"listen"`
 	PublicBaseURL string `toml:"public_base_url"`
+	// SecureCookies 决定会话 cookie 是否带 Secure 标记。生产经 Caddy HTTPS 必须 true；
+	// 本地纯 http 调试需 false，否则浏览器拒收 cookie。
+	SecureCookies bool `toml:"secure_cookies"`
 }
 
 type StorageConfig struct {
@@ -29,9 +32,10 @@ type DatabaseConfig struct {
 }
 
 type SecurityConfig struct {
-	CodeRatePerHour int `toml:"code_rate_per_hour"`
-	SessionTTLDays  int `toml:"session_ttl_days"`
-	ImgSigTTLSecond int `toml:"img_sig_ttl_seconds"`
+	CodeRatePerHour     int `toml:"code_rate_per_hour"`
+	SessionTTLDays      int `toml:"session_ttl_days"`
+	AdminSessionTTLDays int `toml:"admin_session_ttl_days"`
+	ImgSigTTLSecond     int `toml:"img_sig_ttl_seconds"`
 }
 
 // Load 读取 TOML 文件并补齐默认值。缺失必填项即报错，不让半配置状态进入运行。
@@ -68,6 +72,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.Security.SessionTTLDays <= 0 {
 		c.Security.SessionTTLDays = 30
+	}
+	if c.Security.AdminSessionTTLDays <= 0 {
+		c.Security.AdminSessionTTLDays = 7
 	}
 	if c.Security.ImgSigTTLSecond <= 0 {
 		c.Security.ImgSigTTLSecond = 300

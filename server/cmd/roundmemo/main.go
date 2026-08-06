@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"database/sql"
+	"errors"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -10,9 +14,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/term"
 
+	"roundmemo/internal/api"
+	"roundmemo/internal/auth"
 	"roundmemo/internal/config"
 	"roundmemo/internal/store"
 )
@@ -42,21 +47,32 @@ func main() {
 	}
 	defer db.Close()
 
-	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.Timeout(20 * time.Second))
-	r.Use(middleware.Logger)
+	if err := store.Migrate(db); err != nil {
+		logger.Error("数据库迁移失败", "err", err)
+		os.Exit(1)
+	}
 
-	r.Get("/api/health", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"status":"ok","service":"roundmemo"}`))
-	})
+	if args := flag.Args(); len(args) > 0 {
+		switch args[0] {
+		case "owner":
+			if err := runOwnerCmd(db, args[1:]); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+			return
+		case "help", "-h", "--help":
+			printUsage()
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "未知子命令 %q\n", args[0])
+			printUsage()
+			os.Exit(2)
+		}
+	}
 
 	srv := &http.Server{
 		Addr:         cfg.Server.Listen,
-		Handler:      r,
+		Handler:      api.NewServer(db, cfg, logger).Router(),
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
@@ -66,7 +82,7 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		logger.Info("roundmemo 启动", "addr", cfg.Server.Listen)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("HTTP 服务异常退出", "err", err)
 			stop <- syscall.SIGTERM
 		}
@@ -78,5 +94,73 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Error("优雅停机失败", "err", err)
 	}
-	logger.Info("roundmemo 已退出")
+}
+
+// runOwnerCmd 支持 owner create <username>：交互式设密，建人或改密二合一。
+// 密码走终端隐藏输入，不落命令行参数（避免 shell history 泄露）。
+func runOwnerCmd(db *sql.DB, args []string) error {
+	if len(args) < 2 || args[0] != "create" {
+		return fmt.Errorf("用法: roundmemo owner create <username>")
+	}
+	username := args[1]
+
+	pw1, err := promptPassword("输入密码: ")
+	if err != nil {
+		return err
+	}
+	if len(pw1) < 8 {
+		return fmt.Errorf("密码至少 8 位")
+	}
+	pw2, err := promptPassword("确认密码: ")
+	if err != nil {
+		return err
+	}
+	if pw1 != pw2 {
+		return fmt.Errorf("两次密码不一致")
+	}
+
+	hash, err := auth.HashPassword(pw1)
+	if err != nil {
+		return fmt.Errorf("计算密码哈希: %w", err)
+	}
+	id, err := store.UpsertOwner(db, username, hash)
+	if err != nil {
+		return fmt.Errorf("写入 Owner: %w", err)
+	}
+	fmt.Printf("Owner %q 已就绪 (id=%d)\n", username, id)
+	return nil
+}
+
+// stdinScanner 在非终端路径下跨多次 promptPassword 复用：
+// bufio.Scanner 会一次性把管道内容读进内部缓冲，重复新建会丢行。
+var stdinScanner *bufio.Scanner
+
+func promptPassword(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	if term.IsTerminal(int(os.Stdin.Fd())) {
+		b, err := term.ReadPassword(int(os.Stdin.Fd()))
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	}
+	// 非终端（管道/CI）时退化为读一行，便于脚本化。
+	if stdinScanner == nil {
+		stdinScanner = bufio.NewScanner(os.Stdin)
+	}
+	if !stdinScanner.Scan() {
+		return "", errors.New("未读到密码输入")
+	}
+	return stdinScanner.Text(), nil
+}
+
+func printUsage() {
+	fmt.Println(`用法: roundmemo [子命令] -config <path>
+
+子命令:
+  owner create <username>   创建或重置 Owner 账号（交互式输密）
+  help                     显示本帮助
+
+无子命令时以服务模式运行。`)
 }
