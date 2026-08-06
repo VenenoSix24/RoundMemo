@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 )
 
@@ -48,4 +49,23 @@ func GetOwner(db *sql.DB) (*Owner, error) {
 		return nil, err
 	}
 	return &o, nil
+}
+
+// UpdateOwner 修改唯一 Owner 的用户名/密码哈希（改账号）。nil 字段表示不变。
+func UpdateOwner(db *sql.DB, newUsername, newPasswordHash *string) error {
+	sets := []string{}
+	args := []any{}
+	if newUsername != nil {
+		sets = append(sets, "username=?")
+		args = append(args, *newUsername)
+	}
+	if newPasswordHash != nil {
+		sets = append(sets, "password_hash=?")
+		args = append(args, *newPasswordHash)
+	}
+	if len(sets) == 0 {
+		return nil
+	}
+	_, err := db.Exec(`UPDATE owner SET `+strings.Join(sets, ", ")+` WHERE id=(SELECT id FROM owner ORDER BY id LIMIT 1)`, args...)
+	return err
 }

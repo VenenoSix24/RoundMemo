@@ -42,7 +42,11 @@ func (s *Server) handleListAlbums(w http.ResponseWriter, _ *http.Request) {
 	}
 	out := make([]albumJSON, 0, len(albums))
 	for i := range albums {
-		out = append(out, toAlbumJSON(&albums[i]))
+		a := toAlbumJSON(&albums[i])
+		if coverSHA, err := store.AlbumCoverSHA(s.db, a.ID); err == nil {
+			a.CoverSHA = coverSHA
+		}
+		out = append(out, a)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"albums": out})
 }

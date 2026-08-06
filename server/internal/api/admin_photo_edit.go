@@ -41,6 +41,7 @@ type photoJSON struct {
 	DeviceModel string   `json:"device_model"`
 	Title       *string  `json:"title"`
 	Description *string  `json:"description"`
+	Filename    string   `json:"filename"`
 }
 
 func toPhotoJSON(p *store.Photo) photoJSON {
@@ -57,6 +58,7 @@ func toPhotoJSON(p *store.Photo) photoJSON {
 		DeviceModel: p.DeviceModel,
 		Title:       p.Title,
 		Description: p.Description,
+		Filename:    p.Filename,
 	}
 }
 

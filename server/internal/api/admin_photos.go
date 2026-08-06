@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -123,6 +124,7 @@ func (s *Server) importStream(albumID int64, filename string, r io.Reader) impor
 		Height:      &info.Height,
 		DeviceMake:  deviceMake(md),
 		DeviceModel: deviceModel(md),
+		Filename:    filename,
 	}
 	if md != nil {
 		if md.ShotAt != nil {
@@ -186,4 +188,65 @@ func (s *Server) writeStorage(photo *store.Photo, raw io.Reader, info *media.Ima
 	}
 	return s.storage.Put(context.Background(), storage.ThumbKey(photo.SHA256, media.ThumbList),
 		bytes.NewReader(info.List), int64(len(info.List)))
+}
+
+// handleListAlbumPhotos 后台相册照片列表（含 filename，供信息管理与封面设置）。
+func (s *Server) handleListAlbumPhotos(w http.ResponseWriter, r *http.Request) {
+	albumID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "无效的相册 id")
+		return
+	}
+	if _, err := store.GetAlbum(s.db, albumID); err != nil {
+		writeError(w, http.StatusNotFound, "相册不存在")
+		return
+	}
+	photos, err := store.ListPhotosByAlbum(s.db, albumID)
+	if err != nil {
+		s.internalError(w, err)
+		return
+	}
+	out := make([]photoJSON, 0, len(photos))
+	for i := range photos {
+		out = append(out, toPhotoJSON(&photos[i]))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"photos": out})
+}
+
+// handleSetAlbumCover 手动设置相册封面（覆盖当前封面）。
+func (s *Server) handleSetAlbumCover(w http.ResponseWriter, r *http.Request) {
+	albumID, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "无效的相册 id")
+		return
+	}
+	var req struct {
+		PhotoID int64 `json:"photo_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式错误")
+		return
+	}
+	if req.PhotoID == 0 {
+		writeError(w, http.StatusBadRequest, "photo_id 不能为空")
+		return
+	}
+	if _, err := store.GetAlbum(s.db, albumID); err != nil {
+		writeError(w, http.StatusNotFound, "相册不存在")
+		return
+	}
+	photo, err := store.GetPhoto(s.db, req.PhotoID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "照片不存在")
+		return
+	}
+	if photo.AlbumID != albumID {
+		writeError(w, http.StatusBadRequest, "照片不属于该相册")
+		return
+	}
+	if err := store.SetAlbumCoverForce(s.db, albumID, req.PhotoID); err != nil {
+		s.internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
