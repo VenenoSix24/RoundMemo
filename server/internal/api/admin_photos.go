@@ -132,6 +132,13 @@ func (s *Server) importStream(albumID int64, filename string, r io.Reader) impor
 		photo.GPSLat = md.GPSLat
 		photo.GPSLng = md.GPSLng
 	}
+	// 部分手机全景导出剥掉 EXIF 时间，仅文件名带时间戳：此处兜底。
+	if photo.ShotAt == nil {
+		if t := media.ParseShotAtFromFilename(filename); t != nil {
+			ts := t.Unix()
+			photo.ShotAt = &ts
+		}
+	}
 
 	// 先落存储再写库：写库失败最多留孤儿文件（无引用），
 	// 反过来则会产生指向缺失文件的 DB 行，影响更坏。
