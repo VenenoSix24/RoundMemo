@@ -19,6 +19,7 @@ import (
 	"roundmemo/internal/api"
 	"roundmemo/internal/auth"
 	"roundmemo/internal/config"
+	"roundmemo/internal/storage"
 	"roundmemo/internal/store"
 	"roundmemo/internal/version"
 )
@@ -71,11 +72,18 @@ func main() {
 		}
 	}
 
+	st, err := storage.NewFS(cfg.Storage.DataDir)
+	if err != nil {
+		logger.Error("初始化存储失败", "err", err)
+		os.Exit(1)
+	}
+
+	// 大上传与图片流式分发不能套全局 Read/WriteTimeout（会切断慢请求），
+	// 常规请求的限时由路由层的 chi Timeout 中间件承担。
 	srv := &http.Server{
-		Addr:         cfg.Server.Listen,
-		Handler:      api.NewServer(db, cfg, logger).Router(),
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:              cfg.Server.Listen,
+		Handler:           api.NewServer(db, cfg, logger, st).Router(),
+		ReadHeaderTimeout: 15 * time.Second,
 	}
 
 	// 优雅停机：SIGTERM/SIGINT 后最多等 10s 排空在途请求，避免服务重启打断正在看的全景。
