@@ -1,0 +1,85 @@
+/* 圆忆 RoundMemo 设计令牌（设计规范 §3）——唯一的色彩/字号/间距来源，禁止散落 hex */
+
+:root {
+  /* —— 背景：深空层次，不是纯黑 —— */
+  --bg-base: #0b0e14;
+  --bg-elevated: #11141c;
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --bg-glass-strong: rgba(255, 255, 255, 0.1);
+
+  /* —— 主轴：暖金（唯一品牌情感色）—— */
+  --accent: #e8c36f;
+  --accent-soft: rgba(232, 195, 111, 0.16);
+  --accent-press: #cfab58;
+  --accent-on: #1a1407;
+
+  /* —— 辅色：青蓝（交互/链接）—— */
+  --secondary: #6fb8e8;
+
+  /* —— 文字（深色底）—— */
+  --text-primary: #f2f0ec;
+  --text-secondary: #a8aab0;
+  --text-muted: #6b6e76;
+  --text-on-accent: #1a1407;
+
+  /* —— 边框/分隔 —— */
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --hairline: rgba(255, 255, 255, 0.06);
+
+  /* —— 语义色 —— */
+  --danger: #e5654e;
+  --success: #67c29c;
+
+  /* —— 玻璃高光 —— */
+  --glow-top: rgba(255, 255, 255, 0.16);
+  --glow-warm: rgba(232, 195, 111, 0.22);
+
+  /* —— 阴影 —— */
+  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-glass: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  /* —— 字体 —— */
+  --font-ui: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+  --font-accent: 'Cormorant Garamond', 'Noto Serif SC', Georgia, serif;
+
+  /* —— 字号阶 —— */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.125rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2rem;
+  --fs-3xl: 2.5rem;
+
+  /* —— 间距/圆角/触控 —— */
+  --space: 4px;
+  --r-sm: 8px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --tap: 44px;
+  --nav-h: 56px;
+
+  /* —— 动效 —— */
+  --dur-fast: 150ms;
+  --dur-med: 200ms;
+  --dur-slow: 300ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-base: #faf8f4;
+    --bg-elevated: #ffffff;
+    --bg-glass: rgba(15, 20, 32, 0.04);
+    --bg-glass-strong: rgba(15, 20, 32, 0.08);
+    --text-primary: #1a1610;
+    --text-secondary: #56524a;
+    --text-muted: #8a867d;
+    --border: rgba(15, 20, 32, 0.12);
+    --border-strong: rgba(15, 20, 32, 0.2);
+    --hairline: rgba(15, 20, 32, 0.06);
+    /* 暖金两模式不变，是品牌恒定锚 */
+  }
+}

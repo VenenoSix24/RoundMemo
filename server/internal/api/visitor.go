@@ -38,7 +38,12 @@ func (s *Server) handleVisitorAlbums(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			for i := range list {
-				albums = append(albums, toAlbumJSON(&list[i]))
+				a := toAlbumJSON(&list[i])
+				coverSHA, err := store.AlbumCoverSHA(s.db, a.ID)
+				if err == nil {
+					a.CoverSHA = coverSHA
+				}
+				albums = append(albums, a)
 			}
 		}
 	}

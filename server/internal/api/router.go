@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -104,7 +107,44 @@ func (s *Server) Router() http.Handler {
 		})
 	})
 
+	// SPA 静态托管：/api、/img 已在上方注册，这里只兜底前端与深链接。
+	s.mountStatic(r)
+
 	return r
+}
+
+// mountStatic 服务 web/dist 前端：存在则按静态文件 + SPA 兜底，缺失则给占位提示。
+// 生产部署把 dist 与二进制放同目录（web/dist）即可（阶段 8 会处理 embed）。
+func (s *Server) mountStatic(r chi.Router) {
+	dist := filepath.Join("web", "dist")
+	if _, err := os.Stat(dist); err != nil {
+		r.Get("/*", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]string{
+				"service": "roundmemo",
+				"hint":    "前端未构建，请先 cd web && npm run build",
+			})
+		})
+		return
+	}
+	r.Get("/*", func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/" {
+			http.ServeFile(w, req, filepath.Join(dist, "index.html"))
+			return
+		}
+		clean := filepath.Clean("/" + req.URL.Path)
+		full := filepath.Join(dist, clean)
+		// 防越界：清理后的路径必须仍位于 dist 内
+		if !strings.HasPrefix(full, filepath.Clean(dist)+string(os.PathSeparator)) {
+			http.NotFound(w, req)
+			return
+		}
+		if fi, err := os.Stat(full); err == nil && !fi.IsDir() {
+			http.ServeFile(w, req, full)
+			return
+		}
+		// SPA 兜底：深链接（/a/1、/p/2、/s/token）刷新时回 index.html
+		http.ServeFile(w, req, filepath.Join(dist, "index.html"))
+	})
 }
 
 func (s *Server) internalError(w http.ResponseWriter, err error) {
