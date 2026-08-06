@@ -12,19 +12,25 @@ export function openModal(content: HTMLElement): ModalHandle {
   const box = h('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': '对话框' }, content)
   overlay.append(box)
   document.body.append(overlay)
+  // 进场：先渲染隐藏初始态，再切类触发淡入/上移（强制回流保证过渡生效，不依赖 rAF）
+  void overlay.offsetWidth
+  overlay.classList.add('is-open')
+
+  const close = () => {
+    window.removeEventListener('keydown', onKey)
+    overlay.classList.remove('is-open')
+    window.setTimeout(() => overlay.remove(), 240) // 等出场动画结束再摘除
+  }
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') handle.close()
+    if (e.key === 'Escape') close()
   }
   const handle: ModalHandle = {
-    close: () => {
-      window.removeEventListener('keydown', onKey)
-      overlay.remove()
-    },
+    close,
     el: box,
   }
   window.addEventListener('keydown', onKey)
   overlay.addEventListener('mousedown', (e) => {
-    if (e.target === overlay) handle.close()
+    if (e.target === overlay) close()
   })
   return handle
 }
@@ -51,7 +57,13 @@ export function confirmDialog(title: string, message: string, danger = false): P
 export function toast(msg: string): void {
   const t = h('div', { class: 'admin-toast', role: 'status' }, msg)
   document.body.append(t)
-  window.setTimeout(() => t.remove(), 2200)
+  void t.offsetWidth
+  t.classList.add('is-in')
+  window.setTimeout(() => {
+    t.classList.remove('is-in')
+    t.classList.add('is-out')
+    window.setTimeout(() => t.remove(), 260)
+  }, 2000)
 }
 
 // 复制到剪贴板：优先异步 Clipboard API；失败（非安全上下文/权限被拒）时

@@ -2,10 +2,11 @@ import { api, imgUrl, type Album, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
 import { homeExitButtons, visitorDock } from '../components/visitorNav'
+import { wireReveal } from '../components/reveal'
 import { photoDisplayTitle, viewToggle } from '../components/viewToggle'
-import { navigate } from '../router'
+import { navigate, setTeardown } from '../router'
 
-// 相册照片网格：实色卡片 + 拍摄时间角标，点击进入全景沉浸。
+// 相册照片网格：暖纸卡片 + 拍摄时间角标，点击进入全景沉浸。
 export async function renderAlbum(albumIdStr: string): Promise<void> {
   const albumId = Number(albumIdStr)
   let album: Album
@@ -20,26 +21,26 @@ export async function renderAlbum(albumIdStr: string): Promise<void> {
   }
   const albumHref = `/a/${album.id}`
 
-  renderPage(
-    h('div', { class: 'page' }, [
-      h('header', { class: 'glass topbar' }, [
-        h('div', { class: 'topbar-left' }, [
-          h('button', { class: 'icon-btn', 'aria-label': '返回相册列表', onClick: () => navigate('/albums') }, icon('arrow-left')),
-          h('div', { class: 'topbar-title-wrap' }, [
-            h('h1', { class: 'topbar-title font-accent' }, album.title),
-            h('span', { class: 'topbar-sub' }, `${photos.length} 张全景`),
-          ]),
+  const page = h('div', { class: 'page' }, [
+    h('header', { class: 'glass topbar' }, [
+      h('div', { class: 'topbar-left' }, [
+        h('button', { class: 'icon-btn', 'aria-label': '返回相册列表', onClick: () => navigate('/albums') }, icon('arrow-left')),
+        h('div', { class: 'topbar-title-wrap' }, [
+          h('h1', { class: 'topbar-title font-accent' }, album.title),
+          h('span', { class: 'topbar-sub' }, `${photos.length} 张全景`),
         ]),
-        h('div', { class: 'topbar-center' }, [viewToggle('albums', { albumsHref: albumHref })]),
-        h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
       ]),
-      h('main', { class: 'photo-grid' }, photos.length ? photos.map((p) => photoCard(p, album.id)) : [emptyState()]),
-      visitorDock('albums', { albumsHref: albumHref }),
+      h('div', { class: 'topbar-center' }, [viewToggle('albums', { albumsHref: albumHref })]),
+      h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
     ]),
-  )
+    h('main', { class: 'photo-grid' }, photos.length ? photos.map((p, i) => photoCard(p, album.id, i)) : [emptyState()]),
+    visitorDock('albums', { albumsHref: albumHref }),
+  ])
+  renderPage(page)
+  setTeardown(wireReveal(page))
 }
 
-function photoCard(p: Photo, albumId: number): HTMLElement {
+function photoCard(p: Photo, albumId: number, i: number): HTMLElement {
   const badge = p.shot_at ? fmtDate(p.shot_at) : null
   const title = photoDisplayTitle(p.title, p.filename)
   return h(
@@ -48,6 +49,8 @@ function photoCard(p: Photo, albumId: number): HTMLElement {
       class: 'photo-card',
       role: 'link',
       tabindex: '0',
+      dataset: { reveal: '' },
+      style: i < 8 ? `--rd:${i * 40}ms` : undefined, // 首屏 stagger
       onClick: () => navigate(`/p/${p.id}?album=${albumId}`),
       onKeydown: (e: Event) => {
         if ((e as KeyboardEvent).key === 'Enter') navigate(`/p/${p.id}?album=${albumId}`)

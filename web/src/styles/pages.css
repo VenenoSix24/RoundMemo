@@ -1,7 +1,17 @@
-/* —— 通用页面骨架 —— */
+/* —— 通用页面骨架：暖纸层次（顶部金辉 + 上暖下纸渐变），深色模式自适应 —— */
 .page {
   min-height: 100dvh;
   padding: 16px 16px calc(84px + env(safe-area-inset-bottom)); /* 顶栏上浮位对齐 admin（16px），不再被 --nav-h 压下 */
+  background:
+    radial-gradient(88% 44% at 50% -2%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg-base)), var(--bg-base) 30%);
+  animation: page-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
 }
 
 /* —— 顶栏（玻璃胶囊）—— */
@@ -76,7 +86,10 @@
   font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-secondary);
-  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
+  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+}
+.view-seg-btn:active {
+  transform: scale(0.95);
 }
 .view-seg-btn:hover {
   color: var(--text-primary);
@@ -185,7 +198,10 @@
   border-radius: 999px;
   font-size: var(--fs-xs);
   color: var(--text-secondary);
-  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
+  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+}
+.dock-item:active {
+  transform: scale(0.94);
 }
 .dock-item.is-active {
   color: var(--text-primary);
@@ -216,18 +232,30 @@
 }
 
 .album-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--hairline);
+  position: relative;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg-elevated)), var(--bg-elevated) 46%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--hairline));
   border-radius: var(--r-lg);
   overflow: hidden;
   cursor: pointer;
+  box-shadow: 0 1px 2px rgba(60, 45, 15, 0.05), 0 10px 28px rgba(60, 45, 15, 0.06);
   transition: transform var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out),
     border-color var(--dur-med) var(--ease-out);
 }
-
+.album-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48%;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 88%);
+}
 .album-card:hover {
-  transform: translateY(-2px) scale(1.01);
-  border-color: var(--accent-soft);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   box-shadow: var(--shadow-float);
 }
 
@@ -240,6 +268,10 @@
   aspect-ratio: 16 / 9;
   object-fit: cover;
   background: var(--bg-elevated);
+  transition: transform 650ms var(--ease-out);
+}
+.album-card:hover .album-cover {
+  transform: scale(1.04);
 }
 
 .album-cover-empty {
@@ -277,17 +309,18 @@
   display: flex;
   flex-direction: column;
   border-radius: var(--r-md);
-  background: var(--bg-elevated);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg-elevated)), var(--bg-elevated) 42%);
   cursor: pointer;
   overflow: hidden;
-  border: 1px solid var(--hairline);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--hairline));
+  box-shadow: 0 1px 2px rgba(60, 45, 15, 0.04), 0 6px 18px rgba(60, 45, 15, 0.05);
   transition: transform var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out),
     border-color var(--dur-med) var(--ease-out);
 }
 
 .photo-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent-soft);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   box-shadow: var(--shadow-float);
 }
 
@@ -308,6 +341,10 @@
   height: 100%;
   object-fit: cover;
   background: var(--bg-elevated);
+  transition: transform 650ms var(--ease-out);
+}
+.photo-card:hover .photo-thumb {
+  transform: scale(1.05);
 }
 
 .photo-badge {
@@ -334,6 +371,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.photo-caption::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 
 /* —— 时间线 —— */
 .timeline {
@@ -346,11 +394,12 @@
 .timeline::before {
   content: '';
   position: absolute;
-  left: 5px;
+  left: 6px;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: var(--border);
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 18%, transparent) 82%, transparent);
 }
 
 .timeline-group {
@@ -358,12 +407,30 @@
 }
 
 .timeline-month {
-  font-size: var(--fs-xl);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  box-shadow: var(--shadow-glass);
+  font-size: var(--fs-lg);
   font-weight: 600;
-  margin-bottom: 12px;
   position: sticky;
   top: 88px; /* 顶栏占 16..78px，月份标签停在顶栏下方留 10px */
   z-index: 10;
+}
+.timeline-month::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
 .timeline-strip {
@@ -379,8 +446,9 @@
   width: 100%;
   padding: 12px;
   border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg-elevated)), var(--bg-elevated) 45%);
+  box-shadow: 0 1px 2px rgba(60, 45, 15, 0.04), 0 6px 18px rgba(60, 45, 15, 0.05);
   text-align: left;
   cursor: pointer;
   transition: transform var(--dur-med) var(--ease-out), box-shadow var(--dur-med) var(--ease-out),
@@ -389,7 +457,7 @@
 
 .timeline-item:hover {
   transform: translateY(-2px);
-  border-color: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   box-shadow: var(--shadow-float);
 }
 
@@ -400,6 +468,7 @@
   object-fit: cover;
   flex-shrink: 0;
   background: var(--bg-elevated);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .timeline-body {
@@ -1143,6 +1212,16 @@
   gap: 8px;
   align-items: center;
 }
+.empty-state::before {
+  content: '';
+  width: 44px;
+  height: 44px;
+  margin-bottom: 2px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: radial-gradient(circle at 50% 38%, var(--accent-soft), transparent 72%);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 7%, transparent);
+}
 
 .empty-title {
   font-size: var(--fs-xl);
@@ -1379,5 +1458,35 @@
 @media (min-width: 1440px) {
   .photo-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* —— 滚动进场动画（[data-reveal]）：柔光淡入 + 上浮，首屏按 --rd 错峰 ——
+   用 animation 而非 transition，与卡片 hover 过渡互不干扰；backwards 填充
+   保证延迟期保持隐藏、动画结束后交还 hover 位移。尊重 reduced-motion。 */
+[data-reveal] {
+  opacity: 0;
+}
+[data-reveal].is-in {
+  opacity: 1;
+  animation: reveal-in 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--rd, 0ms);
+}
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+  }
+  [data-reveal].is-in {
+    animation: none;
   }
 }

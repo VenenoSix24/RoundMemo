@@ -15,6 +15,13 @@
   flex-direction: column;
   align-items: center;
   gap: 20px;
+  animation: admin-login-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes admin-login-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 }
 .admin-login-brand {
   text-align: center;
@@ -131,7 +138,10 @@
   font-size: var(--fs-sm);
   font-weight: 500;
   white-space: nowrap;
-  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out;
+  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+}
+.admin-nav-item:active {
+  transform: scale(0.96);
 }
 .admin-nav-item:hover {
   background: var(--bg-glass-strong);
@@ -146,6 +156,13 @@
   max-width: 1140px; /* 稍宽：让照片卡操作按钮不换行 */
   margin: 0 auto;
   padding: 18px 16px calc(40px + env(safe-area-inset-bottom));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 300ms var(--ease-out), transform 300ms var(--ease-out);
+}
+.admin-main.is-in {
+  opacity: 1;
+  transform: none;
 }
 
 /* 移动端底部 dock（圆角悬浮液态玻璃）：复用访客 dock 视觉 */
@@ -808,7 +825,7 @@
   font-size: var(--fs-sm);
 }
 
-/* —— 模态 —— */
+/* —— 模态：遮罩淡入 + 卡片上浮/回弹，进出对称 —— */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -820,6 +837,11 @@
   background: rgba(10, 12, 18, 0.45);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+}
+.modal-overlay.is-open {
+  opacity: 1;
 }
 .modal {
   width: min(440px, 100%);
@@ -829,6 +851,13 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-float);
+  opacity: 0;
+  transform: translateY(14px) scale(0.97);
+  transition: opacity 200ms var(--ease-out), transform 280ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.modal-overlay.is-open .modal {
+  opacity: 1;
+  transform: none;
 }
 .modal-body {
   padding: 22px 24px;
@@ -852,12 +881,12 @@
   margin-top: 6px;
 }
 
-/* —— toast —— */
+/* —— toast：滑入停留后滑出 —— */
 .admin-toast {
   position: fixed;
   left: 50%;
   bottom: 28px;
-  transform: translateX(-50%);
+  transform: translate(-50%, 10px);
   z-index: 120;
   padding: 10px 20px;
   border-radius: 999px;
@@ -865,13 +894,16 @@
   color: var(--bg-base);
   font-size: var(--fs-sm);
   box-shadow: var(--shadow-float);
-  animation: admin-toast-in 220ms var(--ease-out);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
 }
-@keyframes admin-toast-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 8px);
-  }
+.admin-toast.is-in {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.admin-toast.is-out {
+  opacity: 0;
+  transform: translate(-50%, 10px);
 }
 
 /* —— 响应式：桌面左抽屉 / 移动底部 tab —— */

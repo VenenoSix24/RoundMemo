@@ -73,5 +73,11 @@ export async function renderAdminShell(active: AdminTab, build: (main: HTMLEleme
   ])
 
   renderPage(page)
-  await build(main)
+  try {
+    await build(main)
+  } finally {
+    // tab 切换动画：内容就绪后淡入上移（强制回流保证过渡生效）
+    void main.offsetWidth
+    main.classList.add('is-in')
+  }
 }
