@@ -78,37 +78,27 @@ export class PanoramaViewer {
   }
 
   private applyTexture(tex: THREE.Texture): void {
-    const mat = this.mesh.material as THREE.MeshBasicMaterial
-    if (this.textureCache.size > 1 && mat.map) {
-      // 切换时旧纹理淡出再换，避免帧抖（开发文档 §7.3）
-      const old = mat.map
-      const fade = new THREE.MeshBasicMaterial({ map: old, transparent: true, opacity: 1 })
-      this.mesh.material = fade
+    const oldMat = this.mesh.material as THREE.MeshBasicMaterial
+    this.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff })
+    this.dirty = true
+
+    // 跨纹理切换用叠加球淡出旧纹理：旧纹理透明度降低时下方已是新图，
+    // 不会露出黑色画布背景（帧抖/黑缝的根因）。
+    if (oldMat.map && oldMat !== this.mesh.material) {
+      const overlay = new THREE.Mesh(
+        this.mesh.geometry,
+        new THREE.MeshBasicMaterial({ map: oldMat.map, transparent: true, opacity: 1 }),
+      )
+      this.scene.add(overlay)
       const start = performance.now()
       const step = () => {
         const t = Math.min(1, (performance.now() - start) / 300)
-        fade.opacity = 1 - t
+        ;(overlay.material as THREE.MeshBasicMaterial).opacity = 1 - t
         if (t < 1) requestAnimationFrame(step)
-        else {
-          this.mesh.material = mat
-          mat.map = tex
-          this.prepareMappedMaterial(mat)
-          this.dirty = true
-        }
+        else this.scene.remove(overlay)
       }
       step()
-    } else {
-      mat.map = tex
-      this.prepareMappedMaterial(mat)
-      this.dirty = true
     }
-  }
-
-  // 初始材质用深色占位，加载完必须回白：MeshBasicMaterial 最终色 = 纹理 × 材质色，
-  // 不重置会把全景压成近黑。
-  private prepareMappedMaterial(mat: THREE.MeshBasicMaterial): void {
-    mat.color.setRGB(1, 1, 1)
-    mat.needsUpdate = true
   }
 
   // —— 视角控制 ——
@@ -188,8 +178,9 @@ export class PanoramaViewer {
     const dy = e.clientY - this.lastY
     this.lastX = e.clientX
     this.lastY = e.clientY
-    this.yaw -= dx * 0.005
-    this.pitch -= dy * 0.005
+    // 自然方向：视场随手指滑动（左滑看右、上滑看下），即"抓取世界"语义
+    this.yaw += dx * 0.005
+    this.pitch += dy * 0.005
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01)
     this.applyManualView()
     this.dirty = true

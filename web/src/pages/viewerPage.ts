@@ -25,9 +25,11 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   const root = h('div', { class: 'viewer-page' })
   const canvas = h('canvas', { class: 'viewer-canvas' })
-  root.append(canvas)
-
-  const viewer = new PanoramaViewer(root, canvas)
+  const loading = h('div', { class: 'viewer-loading glass-compact', role: 'status', 'aria-live': 'polite' }, [
+    h('span', { class: 'spinner', 'aria-hidden': 'true' }),
+    h('span', {}, '全景加载中'),
+  ])
+  root.append(canvas, loading)
 
   // —— 顶栏控件 ——
   const counter = h('span', { class: 'viewer-counter' }, '')
@@ -52,13 +54,17 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   renderPage(root)
 
+  // 先挂载再创建查看器：容器已有真实尺寸，画布初始宽高才正确。
+  const viewer = new PanoramaViewer(root, canvas)
+
   function goTo(i: number): void {
     if (i < 0 || i >= photos.length) return
     index = i
     const p = photos[i]
     history.replaceState(null, '', `/p/${p.id}`)
     updateCounter()
-    void viewer.load(p.sha256)
+    loading.classList.add('is-shown')
+    void viewer.load(p.sha256).finally(() => loading.classList.remove('is-shown'))
   }
 
   function updateCounter(): void {
@@ -102,9 +108,13 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   window.addEventListener('keydown', onKey)
 
   updateCounter()
-  void viewer.load(photos[index].sha256).catch(() => {
-    /* 图片加载失败：保持深色底，不阻断 */
-  })
+  loading.classList.add('is-shown')
+  void viewer
+    .load(photos[index].sha256)
+    .catch(() => {
+      /* 图片加载失败：保持深色底，不阻断 */
+    })
+    .finally(() => loading.classList.remove('is-shown'))
 
   // 页面卸载时释放 WebGL 上下文
   window.addEventListener('pagehide', dispose)
