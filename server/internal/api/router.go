@@ -77,6 +77,8 @@ func (s *Server) Router() http.Handler {
 
 			r.Group(func(r chi.Router) {
 				r.Use(s.requireAdmin)
+				r.Get("/session", s.handleAdminWhoami)
+				r.Post("/logout", s.handleAdminLogout)
 				r.Get("/albums", s.handleListAlbums)
 				r.Post("/albums", s.handleCreateAlbum)
 				r.Patch("/albums/{id}", s.handleUpdateAlbum)

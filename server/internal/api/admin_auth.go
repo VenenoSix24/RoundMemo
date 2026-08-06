@@ -66,3 +66,40 @@ func (s *Server) handleAdminLogin(w http.ResponseWriter, r *http.Request) {
 		"expires_at": time.Now().Unix() + int64(s.cfg.Security.AdminSessionTTLDays)*86400,
 	})
 }
+
+// handleAdminWhoami 返回当前管理会话身份，供前端刷新后渲染顶栏并判断登录态。
+func (s *Server) handleAdminWhoami(w http.ResponseWriter, r *http.Request) {
+	sess := adminSessionFrom(r)
+	owner, err := store.GetOwner(s.db)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			writeError(w, http.StatusUnauthorized, "未初始化")
+			return
+		}
+		s.internalError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"username":   owner.Username,
+		"expires_at": sess.ExpiresAt,
+	})
+}
+
+// handleAdminLogout 主动吊销当前管理会话并清 cookie（顶栏"退出"）。
+func (s *Server) handleAdminLogout(w http.ResponseWriter, r *http.Request) {
+	sess := adminSessionFrom(r)
+	if err := store.DeleteAdminSession(s.db, sess.SID); err != nil {
+		s.internalError(w, err)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     adminCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   s.cfg.Server.SecureCookies,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
+	})
+	w.WriteHeader(http.StatusNoContent)
+}
