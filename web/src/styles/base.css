@@ -1,3 +1,4 @@
+@import './fonts.css';
 @import './tokens.css';
 
 *,
@@ -21,6 +22,7 @@ body {
   background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
   /* 不禁用缩放：全景用户需要捏合（设计规范 §6） */
+  overflow-x: hidden; /* 入口页 180vw 全景平移不产生横向滚动条 */
 }
 
 #app {

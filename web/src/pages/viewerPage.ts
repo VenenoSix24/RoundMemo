@@ -48,8 +48,9 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   ])
   root.append(pill)
 
-  // —— 底部信息抽屉 ——
-  const drawer = h('aside', { class: 'glass viewer-drawer', 'aria-hidden': 'true' }, buildDrawerContent(photo))
+  // —— 照片信息：左上浮层 ——
+  const drawer = h('aside', { class: 'glass viewer-drawer', 'aria-hidden': 'true' })
+  drawer.append(buildDrawerContent(photo, drawer))
   root.append(drawer)
 
   renderPage(root)
@@ -127,7 +128,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   }
 }
 
-function buildDrawerContent(p: Photo): HTMLElement {
+function buildDrawerContent(p: Photo, drawer: HTMLElement): HTMLElement {
   const rows: [string, string][] = [
     ['拍摄时间', p.shot_at ? fmtDate(p.shot_at) : '未知'],
     ['位置', p.gps_lat != null && p.gps_lng != null ? `${p.gps_lat.toFixed(5)}, ${p.gps_lng.toFixed(5)}` : '无位置信息'],
@@ -137,7 +138,7 @@ function buildDrawerContent(p: Photo): HTMLElement {
   return h('div', { class: 'drawer-inner' }, [
     h('div', { class: 'drawer-head' }, [
       h('h2', { class: 'font-accent drawer-title' }, '照片信息'),
-      h('button', { class: 'icon-btn', 'aria-label': '关闭', onClick: () => (document.querySelector('.viewer-drawer') as HTMLElement)?.setAttribute('aria-hidden', 'true') }, icon('x')),
+      h('button', { class: 'icon-btn', 'aria-label': '关闭', onClick: () => drawer.setAttribute('aria-hidden', 'true') }, icon('x')),
     ]),
     ...rows.map(([k, v]) =>
       h('div', { class: 'drawer-row' }, [h('span', { class: 'drawer-key text-muted' }, k), h('span', { class: 'drawer-val' }, v)]),
