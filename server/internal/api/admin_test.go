@@ -217,3 +217,38 @@ func TestAlbumValidation(t *testing.T) {
 		t.Fatalf("更新不存在相册应 404, got %d", rr.Code)
 	}
 }
+
+func TestAdminWhoamiAndLogout(t *testing.T) {
+	s, db := newTestServer(t)
+	seedOwner(t, db, "owner", "pass1234")
+	cookie := loginOwner(t, s, "owner", "pass1234")
+
+	// whoami 返回当前身份
+	rr := doRequest(t, s, http.MethodGet, "/api/admin/session", "", cookie)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("whoami 应 200, got %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), `"username":"owner"`) {
+		t.Fatalf("whoami 应含用户名, got %s", rr.Body.String())
+	}
+
+	// 登出：吊销会话并清 cookie
+	rr = doRequest(t, s, http.MethodPost, "/api/admin/logout", "{}", cookie)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("logout 应 204, got %d", rr.Code)
+	}
+	cleared := false
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == adminCookieName && c.MaxAge < 0 {
+			cleared = true
+		}
+	}
+	if !cleared {
+		t.Fatal("logout 未清除 rm_admin cookie")
+	}
+
+	// 登出后原 cookie 失效
+	if rr := doRequest(t, s, http.MethodGet, "/api/admin/session", "", cookie); rr.Code != http.StatusUnauthorized {
+		t.Fatalf("登出后 whoami 应 401, got %d", rr.Code)
+	}
+}
