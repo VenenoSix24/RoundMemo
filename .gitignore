@@ -1,0 +1,27 @@
+# 系统 / 编辑器
+.DS_Store
+*.log
+
+# 本地工具会话
+.claude/
+
+# 运行时数据（开发文档 §13：照片、缩略图、数据库）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Go 构建产物
+roundmemo
+bin/
+
+# 前端依赖与构建
+node_modules/
+web/dist/
+
+# 本地配置（仓库只提交 config.example.toml）
+config.toml
+.env
+
+# 历史演示产物（用户指定）
+.history/

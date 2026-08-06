@@ -1,0 +1,21 @@
+# 圆忆 RoundMemo 服务配置模板
+# 复制为 config.toml 并按需修改；config.toml 已被 .gitignore 排除，仓库只提交本模板。
+
+[server]
+listen = "127.0.0.1:8787"
+# 对外域名，用于生成分享链接；本地开发可保持占位，部署时替换为真实域名
+public_base_url = "https://pano.example.com"
+
+[storage]
+kind = "fs"
+# 运行时数据根目录（原图/缩略图/数据库）
+data_dir = "./data"
+
+[database]
+# 留空则落在 data_dir/roundmemo.db
+path = ""
+
+[security]
+code_rate_per_hour = 10      # 口令尝试限流：每 IP 每小时（开发文档 §6.4）
+session_ttl_days = 30        # 访客会话默认有效期（天）
+img_sig_ttl_seconds = 300    # 图片分发签名有效期（秒）
