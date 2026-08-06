@@ -63,6 +63,8 @@ func (s *Server) Router() http.Handler {
 			r.Get("/albums/{id}", s.handleVisitorAlbum)
 			r.Get("/photos/{id}", s.handleVisitorPhoto)
 			r.Get("/timeline", s.handleVisitorTimeline)
+			r.Get("/settings", s.handleGetPublicSettings)
+			r.Get("/settings/favicon", s.handleGetFavicon)
 		})
 	})
 
@@ -84,9 +86,15 @@ func (s *Server) Router() http.Handler {
 				r.Patch("/albums/{id}", s.handleUpdateAlbum)
 				r.Delete("/albums/{id}", s.handleDeleteAlbum)
 				r.Get("/albums/{id}/photos", s.handleListAlbumPhotos)
+				r.Post("/albums/{id}/photos", s.handleAttachPhotos)
+				r.Delete("/albums/{id}/photos/{photoId}", s.handleDetachPhoto)
 				r.Post("/albums/{id}/cover", s.handleSetAlbumCover)
 				r.Patch("/photos/{id}", s.handleUpdatePhoto)
+				r.Get("/photos", s.handleListAllPhotos)
+				r.Delete("/photos/{id}", s.handleDeletePhoto)
 				r.Post("/account", s.handleAdminAccount)
+				r.Put("/settings", s.handleAdminPutSettings)
+				r.Post("/settings/favicon", s.handleAdminUploadFavicon)
 
 				r.Get("/groups", s.handleListGroups)
 				r.Post("/groups", s.handleCreateGroup)
@@ -107,7 +115,7 @@ func (s *Server) Router() http.Handler {
 		// 导入/上传：不做超时，批量大文件可能远超 20s（开发文档 §15 风险项）。
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAdmin)
-			r.Post("/albums/{id}/photos", s.handleUploadPhotos)
+			r.Post("/photos", s.handleUploadPhotos)
 			r.Post("/import/local", s.handleImportLocal)
 		})
 	})

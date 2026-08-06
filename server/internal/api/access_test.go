@@ -223,9 +223,12 @@ func TestPhotoAndImageAccess(t *testing.T) {
 	if !strings.Contains(rr.Body.String(), `"added"`) {
 		t.Fatalf("上传失败: %s", rr.Body.String())
 	}
-	photos, err := store.ListPhotosByAlbum(db, 1)
+	photos, err := store.ListAllPhotos(db)
 	if err != nil || len(photos) != 1 {
 		t.Fatalf("照片入库失败: %v", err)
+	}
+	if err := store.AddPhotosToAlbum(db, 1, []int64{photos[0].ID}); err != nil {
+		t.Fatal(err)
 	}
 	sha := photos[0].SHA256
 

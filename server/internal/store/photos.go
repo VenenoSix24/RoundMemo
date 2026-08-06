@@ -9,7 +9,6 @@ import (
 
 type Photo struct {
 	ID          int64
-	AlbumID     int64
 	StorageKey  string
 	SHA256      string
 	ByteSize    int64
@@ -27,7 +26,7 @@ type Photo struct {
 }
 
 // CreatePhoto 写库并做 sha256 去重。返回 (照片, 是否本次新建, 错误)；
-// 已存在时返回既有行而不重复落盘。
+// 已存在时返回既有行而不重复落盘。照片进"照片池"，相册归属走 album_photos。
 // 单连接串行化保证检查-插入无竞态。
 func CreatePhoto(db *sql.DB, p *Photo) (*Photo, bool, error) {
 	if existing, err := GetPhotoBySHA(db, p.SHA256); err == nil {
@@ -37,10 +36,10 @@ func CreatePhoto(db *sql.DB, p *Photo) (*Photo, bool, error) {
 	}
 
 	_, err := db.Exec(`
-		INSERT INTO photos(album_id, storage_key, sha256, byte_size, width, height,
+		INSERT INTO photos(storage_key, sha256, byte_size, width, height,
 			shot_at, gps_lat, gps_lng, device_make, device_model, filename, created_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		p.AlbumID, p.StorageKey, p.SHA256, p.ByteSize, p.Width, p.Height,
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+		p.StorageKey, p.SHA256, p.ByteSize, p.Width, p.Height,
 		p.ShotAt, p.GPSLat, p.GPSLng, p.DeviceMake, p.DeviceModel, p.Filename, time.Now().Unix())
 	if err != nil {
 		return nil, false, err
@@ -51,7 +50,7 @@ func CreatePhoto(db *sql.DB, p *Photo) (*Photo, bool, error) {
 
 func GetPhoto(db *sql.DB, id int64) (*Photo, error) {
 	row := db.QueryRow(`
-		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
+		SELECT id, storage_key, sha256, byte_size, width, height,
 			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
 		FROM photos WHERE id=?`, id)
 	return scanPhoto(row)
@@ -59,50 +58,18 @@ func GetPhoto(db *sql.DB, id int64) (*Photo, error) {
 
 func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 	row := db.QueryRow(`
-		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
+		SELECT id, storage_key, sha256, byte_size, width, height,
 			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
 		FROM photos WHERE sha256=?`, sha)
 	return scanPhoto(row)
 }
 
-// ListPhotosByAlbum 按相册取照片，拍摄时间升序（无时间按导入时间兜底）。
-func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]Photo, error) {
+// ListAllPhotos 全量照片（照片池，后台「照片」tab 用），按拍摄时间升序。
+func ListAllPhotos(db *sql.DB) ([]Photo, error) {
 	rows, err := db.Query(`
-		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
+		SELECT id, storage_key, sha256, byte_size, width, height,
 			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
-		FROM photos WHERE album_id=? ORDER BY COALESCE(shot_at, created_at), id`, albumID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	photos := []Photo{}
-	for rows.Next() {
-		var p Photo
-		if err := scanPhotoInto(rows.Scan, &p); err != nil {
-			return nil, err
-		}
-		photos = append(photos, p)
-	}
-	return photos, rows.Err()
-}
-
-// ListPhotosByAlbums 跨多个相册取照片（时间线视图用），按拍摄时间升序。
-// 动态 IN 参数，相册数量极少，安全性无虞。
-func ListPhotosByAlbums(db *sql.DB, albumIDs []int64) ([]Photo, error) {
-	if len(albumIDs) == 0 {
-		return []Photo{}, nil
-	}
-	placeholders := strings.Repeat("?,", len(albumIDs))
-	placeholders = placeholders[:len(placeholders)-1]
-	args := make([]any, len(albumIDs))
-	for i, id := range albumIDs {
-		args[i] = id
-	}
-	rows, err := db.Query(`
-		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
-		FROM photos WHERE album_id IN (`+placeholders+`)
-		ORDER BY COALESCE(shot_at, created_at), id`, args...)
+		FROM photos ORDER BY COALESCE(shot_at, created_at), id`)
 	if err != nil {
 		return nil, err
 	}
@@ -130,6 +97,23 @@ func SetAlbumCoverForce(db *sql.DB, albumID, photoID int64) error {
 	_, err := db.Exec(`UPDATE albums SET cover_photo_id=?, updated_at=? WHERE id=?`,
 		photoID, time.Now().Unix(), albumID)
 	return err
+}
+
+// DeletePhoto 删除照片行并返回其元数据（供上层清理存储文件）。
+// 若该照片是某相册封面，先清封面引用，避免悬空。
+func DeletePhoto(db *sql.DB, id int64) (*Photo, error) {
+	p, err := GetPhoto(db, id)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := db.Exec(`UPDATE albums SET cover_photo_id=NULL WHERE cover_photo_id=?`, id); err != nil {
+		return nil, err
+	}
+	res, err := db.Exec(`DELETE FROM photos WHERE id=?`, id)
+	if err != nil {
+		return nil, err
+	}
+	return p, requireAffected(res)
 }
 
 // PhotoPatch 照片元数据补丁。nil 字段表示不变；ClearXxx 表示显式清空（写 NULL）。
@@ -210,7 +194,7 @@ func scanPhotoInto(scan func(dest ...any) error, p *Photo) error {
 	var width, height, shotAt sql.NullInt64
 	var gpsLat, gpsLng sql.NullFloat64
 	var title, desc, filename sql.NullString
-	if err := scan(&p.ID, &p.AlbumID, &p.StorageKey, &p.SHA256, &p.ByteSize,
+	if err := scan(&p.ID, &p.StorageKey, &p.SHA256, &p.ByteSize,
 		&width, &height, &shotAt, &gpsLat, &gpsLng,
 		&p.DeviceMake, &p.DeviceModel, &title, &desc, &filename, &p.CreatedAt); err != nil {
 		return err

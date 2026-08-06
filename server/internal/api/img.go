@@ -53,7 +53,12 @@ func (s *Server) handleImage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "不存在")
 		return
 	}
-	ok, err = store.SessionCoversAlbum(s.db, sid, photo.AlbumID, now)
+	albumIDs, err := store.AlbumIDsForPhoto(s.db, photo.ID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "不存在")
+		return
+	}
+	ok, err = store.SessionCoversAnyAlbum(s.db, sid, albumIDs, now)
 	if err != nil || !ok {
 		writeError(w, http.StatusNotFound, "不存在")
 		return
