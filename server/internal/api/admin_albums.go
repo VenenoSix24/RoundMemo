@@ -16,6 +16,7 @@ type albumJSON struct {
 	Title        string  `json:"title"`
 	Description  *string `json:"description"`
 	CoverPhotoID *int64  `json:"cover_photo_id"`
+	CoverSHA     string  `json:"cover_sha"`
 	SortKey      string  `json:"sort_key"`
 	CreatedAt    int64   `json:"created_at"`
 	UpdatedAt    int64   `json:"updated_at"`

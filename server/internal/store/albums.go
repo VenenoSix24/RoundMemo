@@ -69,6 +69,26 @@ func AlbumsForGroup(db *sql.DB, groupID int64) ([]Album, error) {
 	return albums, rows.Err()
 }
 
+// AlbumCoverSHA 返回相册封面的缩略图 sha：优先 cover_photo_id，否则拍摄最早的
+// 一张；无照片返回空串。供前端相册卡片直接拼鉴权图片 URL。
+func AlbumCoverSHA(db *sql.DB, albumID int64) (string, error) {
+	var sha sql.NullString
+	err := db.QueryRow(`
+		SELECT COALESCE(
+			(SELECT p.sha256 FROM photos p WHERE p.id = a.cover_photo_id),
+			(SELECT p.sha256 FROM photos p WHERE p.album_id = a.id
+				ORDER BY COALESCE(p.shot_at, p.created_at), p.id LIMIT 1)
+		)
+		FROM albums a WHERE a.id = ?`, albumID).Scan(&sha)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	return sha.String, nil
+}
+
 func GetAlbum(db *sql.DB, id int64) (*Album, error) {
 	return scanAlbum(db.QueryRow(`
 		SELECT id, title, description, cover_photo_id, sort_key, created_at, updated_at
