@@ -58,6 +58,15 @@ func TestParseShotAtFromFilename(t *testing.T) {
 		t.Fatalf("时间解析不符: %v", tm)
 	}
 
+	// Android 谷歌相机全景格式
+	tm = ParseShotAtFromFilename("IMG_20260622_163710005.PHOTOSPHERE_1782406703984.jpg")
+	if tm == nil {
+		t.Fatal("IMG 格式应解析出时间")
+	}
+	if tm.Year() != 2026 || tm.Month() != 6 || tm.Day() != 22 || tm.Hour() != 16 || tm.Minute() != 37 || tm.Second() != 10 {
+		t.Fatalf("IMG 时间解析不符: %v", tm)
+	}
+
 	if ParseShotAtFromFilename("random-name.jpg") != nil {
 		t.Fatal("无时间前缀的文件名不应命中")
 	}
