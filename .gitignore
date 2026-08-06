@@ -23,5 +23,10 @@ web/dist/
 config.toml
 .env
 
-# 历史演示产物（用户指定）
+# 本地修改历史
 .history/
+
+# 设计文档（仅存本地，不进公开仓库）
+开发文档.md
+设计规范.md
+docs/
