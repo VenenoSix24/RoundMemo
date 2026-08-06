@@ -1,11 +1,13 @@
 import { api, type Album, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
+import { photoDisplayTitle } from '../components/viewToggle'
 import { PanoramaViewer } from '../viewer/viewer'
 import { navigate } from '../router'
 import { fmtDate } from './album'
 
-// 全景沉浸页：照片占满视口，控件 1.5s 无操作淡出；顶栏胶囊 + 底部信息抽屉。
+// 全景沉浸页：照片占满视口。左上常驻「返回相册 + 照片信息」，底部控制胶囊
+// （上一张/计数/下一张 + 陀螺仪/重置）1.5s 无操作淡出。
 export async function renderViewer(photoIdStr: string): Promise<void> {
   const photoId = Number(photoIdStr)
   let photo: Photo
@@ -31,10 +33,9 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   ])
   root.append(canvas, loading)
 
-  // —— 顶栏控件 ——
+  // —— 底部控制胶囊 ——
   const counter = h('span', { class: 'viewer-counter' }, '')
   const pill = h('div', { class: 'glass viewer-pill' }, [
-    h('button', { class: 'icon-btn', 'aria-label': '返回相册', onClick: () => navigate(`/a/${album.id}`) }, icon('arrow-left')),
     h('div', { class: 'viewer-middle' }, [
       h('button', { class: 'icon-btn', 'aria-label': '上一张', onClick: () => goTo(index - 1) }, icon('arrow-left')),
       counter,
@@ -43,15 +44,21 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     h('div', { class: 'viewer-actions' }, [
       h('button', { class: 'icon-btn gyro-btn', 'aria-label': '开启看景视角', title: '陀螺仪', onClick: onGyro }, icon('compass')),
       h('button', { class: 'icon-btn', 'aria-label': '重置朝向', title: '重置', onClick: () => viewer.resetView() }, icon('reset')),
-      h('button', { class: 'icon-btn', 'aria-label': '照片信息', onClick: () => toggleDrawer() }, icon('info')),
     ]),
   ])
   root.append(pill)
 
-  // —— 照片信息：左上浮层 ——
-  const drawer = h('aside', { class: 'glass viewer-drawer', 'aria-hidden': 'true' })
-  drawer.append(buildDrawerContent(photo, drawer))
-  root.append(drawer)
+  // —— 左上：返回相册 + 常驻照片信息 ——
+  const infoTitle = h('h1', { class: 'font-accent viewer-info-title' })
+  const infoMeta = h('div', { class: 'viewer-info-meta' })
+  const info = h('div', { class: 'viewer-info' }, [infoTitle, infoMeta])
+  const backBtn = h('button', {
+    class: 'btn btn-ghost viewer-back',
+    type: 'button',
+    onClick: () => navigate(`/a/${album.id}`),
+  }, [icon('arrow-left', 16), '相册'])
+  const top = h('div', { class: 'viewer-top' }, [backBtn, info])
+  root.append(top)
 
   renderPage(root)
 
@@ -64,6 +71,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     const p = photos[i]
     history.replaceState(null, '', `/p/${p.id}`)
     updateCounter()
+    updateInfo(p)
     loading.classList.add('is-shown')
     void viewer.load(p.sha256).finally(() => loading.classList.remove('is-shown'))
   }
@@ -72,9 +80,14 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     counter.textContent = `第 ${index + 1} / ${photos.length} 张`
   }
 
-  function toggleDrawer(): void {
-    const open = drawer.getAttribute('aria-hidden') === 'true'
-    drawer.setAttribute('aria-hidden', String(!open))
+  function updateInfo(p: Photo): void {
+    infoTitle.textContent = photoDisplayTitle(p.title, p.filename)
+    const meta: Array<{ icon: string; text: string }> = []
+    if (p.shot_at) meta.push({ icon: 'clock', text: fmtDate(p.shot_at) })
+    if (p.gps_lat != null && p.gps_lng != null) meta.push({ icon: 'pin', text: `${p.gps_lat.toFixed(4)}, ${p.gps_lng.toFixed(4)}` })
+    const device = [p.device_make, p.device_model].filter(Boolean).join(' ')
+    if (device) meta.push({ icon: 'camera', text: device })
+    infoMeta.replaceChildren(...meta.map((m) => h('span', { class: 'viewer-info-item' }, [icon(m.icon, 14), m.text])))
   }
 
   async function onGyro(): Promise<void> {
@@ -83,7 +96,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     if (btn) btn.classList.toggle('is-active', on)
   }
 
-  // —— 控件 idle 淡出（尊重 reduced-motion）——
+  // —— 控件 idle 淡出（仅底部胶囊，左上信息常驻；尊重 reduced-motion）——
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   let idleTimer = 0
   const showControls = () => {
@@ -109,6 +122,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   window.addEventListener('keydown', onKey)
 
   updateCounter()
+  updateInfo(photo)
   loading.classList.add('is-shown')
   void viewer
     .load(photos[index].sha256)
@@ -126,22 +140,4 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     window.removeEventListener('pagehide', dispose)
     viewer.dispose()
   }
-}
-
-function buildDrawerContent(p: Photo, drawer: HTMLElement): HTMLElement {
-  const rows: [string, string][] = [
-    ['拍摄时间', p.shot_at ? fmtDate(p.shot_at) : '未知'],
-    ['位置', p.gps_lat != null && p.gps_lng != null ? `${p.gps_lat.toFixed(5)}, ${p.gps_lng.toFixed(5)}` : '无位置信息'],
-    ['设备', [p.device_make, p.device_model].filter(Boolean).join(' ') || '未知'],
-    ['描述', p.title || p.description || '—'],
-  ]
-  return h('div', { class: 'drawer-inner' }, [
-    h('div', { class: 'drawer-head' }, [
-      h('h2', { class: 'font-accent drawer-title' }, '照片信息'),
-      h('button', { class: 'icon-btn', 'aria-label': '关闭', onClick: () => drawer.setAttribute('aria-hidden', 'true') }, icon('x')),
-    ]),
-    ...rows.map(([k, v]) =>
-      h('div', { class: 'drawer-row' }, [h('span', { class: 'drawer-key text-muted' }, k), h('span', { class: 'drawer-val' }, v)]),
-    ),
-  ])
 }

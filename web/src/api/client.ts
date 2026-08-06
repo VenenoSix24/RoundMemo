@@ -29,6 +29,7 @@ export interface Photo {
   device_model: string
   title: string | null
   description: string | null
+  filename: string
 }
 
 export interface SessionInfo {

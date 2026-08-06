@@ -94,18 +94,22 @@ export class PanoramaViewer {
       const step = () => {
         const t = Math.min(1, (performance.now() - start) / 300)
         ;(overlay.material as THREE.MeshBasicMaterial).opacity = 1 - t
+        this.dirty = true // 关键：每帧标记脏，主循环才会重绘淡出过程
         if (t < 1) requestAnimationFrame(step)
         else this.scene.remove(overlay)
       }
       step()
     }
+    // 兜底：立即渲染一帧，确保新纹理不依赖下一次滚动/拖拽才上屏
+    this.renderer.render(this.scene, this.camera)
   }
 
   // —— 视角控制 ——
   resetView(): void {
+    if (this.gyroOn) this.setGyro(false) // 先切回触摸（会同步当前朝向到 yaw/pitch）
     this.yaw = 0
     this.pitch = 0
-    if (this.gyroOn) this.setGyro(false)
+    this.applyManualView() // 之前只改 yaw/pitch 没应用到相机，导致点重置无反应
     this.dirty = true
   }
 

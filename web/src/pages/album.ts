@@ -1,6 +1,7 @@
 import { api, imgUrl, type Album, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
+import { photoDisplayTitle } from '../components/viewToggle'
 import { navigate } from '../router'
 
 // 相册照片网格：实色卡片 + 拍摄时间角标，点击进入全景沉浸。
@@ -35,6 +36,7 @@ export async function renderAlbum(albumIdStr: string): Promise<void> {
 
 function photoCard(p: Photo): HTMLElement {
   const badge = p.shot_at ? fmtDate(p.shot_at) : null
+  const title = photoDisplayTitle(p.title, p.filename)
   return h(
     'figure',
     {
@@ -47,9 +49,9 @@ function photoCard(p: Photo): HTMLElement {
       },
     },
     [
-      h('img', { class: 'photo-thumb', src: imgUrl('thumb256', p.sha256), alt: `全景照片 ${p.title ?? ''}`, loading: 'lazy' }),
+      h('img', { class: 'photo-thumb', src: imgUrl('thumb1024', p.sha256), alt: title, loading: 'lazy' }),
       badge ? h('span', { class: 'photo-badge glass-compact' }, badge) : null,
-      p.title ? h('figcaption', { class: 'photo-caption' }, p.title) : null,
+      h('figcaption', { class: 'photo-caption' }, title),
     ],
   )
 }

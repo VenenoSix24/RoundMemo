@@ -2,6 +2,7 @@ import { api, imgUrl, type Album } from '../api/client'
 import { state, rememberGroup } from '../state'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
+import { viewToggle } from '../components/viewToggle'
 import { navigate } from '../router'
 
 // 相册列表：顶部玻璃栏（分组切换 + 视图切换 + 退出），主体为实色相册卡片。
@@ -43,31 +44,25 @@ function topBar(): HTMLElement {
     sel.append(opt)
   }
 
-  const viewGrid = h(
+  const viewSeg = viewToggle('grid')
+
+  const homeBtn = h(
     'button',
     {
-      class: 'icon-btn view-btn is-active',
-      'aria-label': '网格视图',
-      onClick: () => navigate('/albums'),
+      class: 'icon-btn',
+      'aria-label': '返回首页',
+      title: '返回首页（保留当前访问）',
+      onClick: () => navigate('/'),
     },
-    icon('grid'),
-  )
-  const viewTimeline = h(
-    'button',
-    {
-      class: 'icon-btn view-btn',
-      'aria-label': '时间线',
-      onClick: () => navigate('/timeline'),
-    },
-    icon('list'),
+    icon('home'),
   )
 
   const exitBtn = h(
     'button',
     {
-      class: 'icon-btn',
-      'aria-label': '退出访问',
-      title: '退出访问',
+      class: 'icon-btn view-exit',
+      'aria-label': '彻底退出',
+      title: '彻底退出（清空当前访问，下次需重新输入口令）',
       onClick: async () => {
         try {
           await api.revoke()
@@ -84,7 +79,7 @@ function topBar(): HTMLElement {
 
   return h('header', { class: 'glass topbar' }, [
     h('div', { class: 'topbar-left' }, [sel]),
-    h('div', { class: 'topbar-right' }, [viewGrid, viewTimeline, exitBtn]),
+    h('div', { class: 'topbar-right' }, [viewSeg, homeBtn, exitBtn]),
   ])
 }
 

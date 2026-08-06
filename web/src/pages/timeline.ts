@@ -1,9 +1,10 @@
 import { api, imgUrl, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
+import { photoDisplayTitle, viewToggle } from '../components/viewToggle'
 import { navigate } from '../router'
 
-// 时间线：按拍摄时间纵向轴，年份粘性标签 + 月份分组。
+// 时间线：按拍摄时间纵向轴，月份分组 + 粘性标签；每条目 = 缩略图 + 标题 + 时间 + 地点。
 export async function renderTimeline(): Promise<void> {
   let photos: Photo[] = []
   try {
@@ -18,9 +19,10 @@ export async function renderTimeline(): Promise<void> {
     h('div', { class: 'page' }, [
       h('header', { class: 'glass topbar' }, [
         h('div', { class: 'topbar-left' }, [
-          h('button', { class: 'icon-btn', 'aria-label': '返回', onClick: () => navigate('/albums') }, icon('arrow-left')),
+          h('button', { class: 'icon-btn', 'aria-label': '返回相册', onClick: () => navigate('/albums') }, icon('arrow-left')),
           h('h1', { class: 'topbar-title font-accent' }, '时间线'),
         ]),
+        h('div', { class: 'topbar-right' }, [viewToggle('timeline')]),
       ]),
       h('main', { class: 'timeline' }, groups.length ? groups.map(monthGroup) : [emptyState()]),
     ]),
@@ -54,19 +56,30 @@ function monthGroup(g: { year: number; label: string; photos: Photo[] }): HTMLEl
 }
 
 function timelineItem(p: Photo): HTMLElement {
-  const time = p.shot_at ? fmtDay(p.shot_at) : '未知时间'
+  const title = photoDisplayTitle(p.title, p.filename)
+  const time = p.shot_at ? fmtDay(p.shot_at) : '时间未知'
+  const hasGPS = p.gps_lat != null && p.gps_lng != null
+  const loc = hasGPS ? `${p.gps_lat!.toFixed(4)}, ${p.gps_lng!.toFixed(4)}` : null
   return h(
-    'button',
+    'article',
     {
       class: 'timeline-item',
-      type: 'button',
+      role: 'link',
+      tabindex: '0',
       onClick: () => navigate(`/p/${p.id}`),
+      onKeydown: (e: Event) => {
+        if ((e as KeyboardEvent).key === 'Enter') navigate(`/p/${p.id}`)
+      },
     },
     [
-      h('img', { class: 'timeline-thumb', src: imgUrl('thumb256', p.sha256), alt: '', loading: 'lazy' }),
-      h('div', { class: 'timeline-meta' }, [
-        h('span', { class: 'timeline-time' }, time),
-        h('span', { class: 'timeline-title text-muted' }, p.title ?? (p.device_model ? p.device_model : '全景')),
+      h('img', { class: 'timeline-thumb', src: imgUrl('thumb256', p.sha256), alt: title, loading: 'lazy' }),
+      h('div', { class: 'timeline-body' }, [
+        h('h3', { class: 'timeline-title font-accent' }, title),
+        h('div', { class: 'timeline-meta' }, [
+          h('span', { class: 'timeline-time' }, [icon('clock', 14), time]),
+          loc ? h('span', { class: 'timeline-loc' }, [icon('pin', 14), loc]) : null,
+          p.device_model ? h('span', { class: 'timeline-device text-muted' }, p.device_model) : null,
+        ]),
       ]),
     ],
   )
