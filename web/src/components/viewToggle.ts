@@ -2,21 +2,37 @@ import { h } from './dom'
 import { icon } from './icons'
 import { navigate } from '../router'
 
-// 相册/时间线视图切换：当前视图高亮，点另一端导航过去。
-export function viewToggle(current: 'grid' | 'timeline'): HTMLElement {
+// 视图切换：相册 / 时间线 / 地图（占位）。桌面端顶栏居中分段控件，移动端由 dock 承担。
+
+export type VisitorView = 'albums' | 'timeline' | 'map'
+
+export interface ViewToggleCtx {
+  // 「相册」tab 的目标：从相册照片页进入时间线时回该照片页，否则回相册列表。
+  albumsHref?: string
+}
+
+function timelineHref(): string {
+  return `/timeline?from=${encodeURIComponent(location.pathname)}`
+}
+
+export function viewToggle(current: VisitorView, ctx: ViewToggleCtx = {}): HTMLElement {
+  const item = (view: VisitorView, label: string, iconName: string, disabled = false, onClick?: () => void) =>
+    h(
+      'button',
+      {
+        class: 'view-seg-btn' + (current === view ? ' is-active' : ''),
+        type: 'button',
+        disabled: disabled ? 'disabled' : undefined,
+        'aria-pressed': current === view ? 'true' : 'false',
+        onClick,
+        title: disabled ? '地图视图开发中' : undefined,
+      },
+      [icon(iconName, 18), h('span', {}, label)],
+    )
   return h('div', { class: 'view-seg', role: 'group', 'aria-label': '视图切换' }, [
-    h('button', {
-      class: 'view-seg-btn' + (current === 'grid' ? ' is-active' : ''),
-      type: 'button',
-      'aria-pressed': current === 'grid' ? 'true' : 'false',
-      onClick: () => navigate('/albums'),
-    }, [icon('grid', 18), h('span', {}, '网格')]),
-    h('button', {
-      class: 'view-seg-btn' + (current === 'timeline' ? ' is-active' : ''),
-      type: 'button',
-      'aria-pressed': current === 'timeline' ? 'true' : 'false',
-      onClick: () => navigate('/timeline'),
-    }, [icon('list', 18), h('span', {}, '时间线')]),
+    item('albums', '相册', 'grid', false, () => navigate(ctx.albumsHref ?? '/albums')),
+    item('timeline', '时间线', 'list', false, () => navigate(timelineHref())),
+    item('map', '地图', 'pin', true),
   ])
 }
 

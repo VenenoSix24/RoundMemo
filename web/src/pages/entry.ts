@@ -1,6 +1,7 @@
 import { api } from '../api/client'
 import { state, rememberGroup, restoreGroup } from '../state'
 import { h, renderPage } from '../components/dom'
+import { openModal } from '../components/modal'
 import { navigate, setTeardown } from '../router'
 
 // 口令入口页（电影感版本）：光场三叠层 + 滚动叙事三章 + 玻璃口令卡。
@@ -68,28 +69,30 @@ export async function renderEntry(): Promise<void> {
   const emblem = h('div', { class: 'emblem', 'aria-hidden': 'true' })
   emblem.innerHTML = EMBLEM_SVG
   const brand = h('h1', { class: 'brand' }, [h('span', {}, '圆'), h('span', {}, '忆')])
+  const brandEn = h('p', { class: 'brand-en' }, 'ROUNDMEMO')
   const meaning = h('p', { class: 'meaning' }, [
     h('i', {}, '圆'),
     '，是走完一圈的圆满　　',
     h('i', {}, '忆'),
     '，是转过身的那次回望',
   ])
-  const tagline = h('p', { class: 'tagline' }, 'ROUNDMEMO · 私密全景纪念')
+  const tagline = h('p', { class: 'tagline' }, '全景纪念')
   const card = h('section', { class: 'card', role: 'dialog', 'aria-label': '圆忆入口' })
 
   if (state.groups.length > 0) renderWelcome(card)
-  else renderCodeForm(card)
+  else renderCodeForm(card, null)
 
   const hero = h('header', { class: 'hero', 'data-el': 'hero' }, [
     emblem,
     brand,
+    brandEn,
     meaning,
     tagline,
     card,
     h(
       'a',
       { href: '/admin', class: 'entry-admin' },
-      '授访者登录',
+      '芝麻开门',
     ),
     h('div', { class: 'scrollcue', 'aria-hidden': 'true' }, ['向下，环顾这段记忆', h('span', { class: 'dot' })]),
   ])
@@ -145,10 +148,13 @@ export async function renderEntry(): Promise<void> {
 
   // —— 结尾 ——
   const climax = h('footer', { class: 'climax' }, [
-    h('h1', { class: 'brand' }, [h('span', {}, '圆'), h('span', {}, '忆')]),
+    h('div', { class: 'climax-brand' }, [
+      h('h1', { class: 'brand' }, [h('span', {}, '圆'), h('span', {}, '忆')]),
+      h('p', { class: 'brand-en' }, 'ROUNDMEMO'),
+    ]),
     h('p', {}, ['把自己放回那个时刻。', h('br'), '拖动，环顾，让四面的风，都记得你。']),
-    h('button', { class: 'btn', type: 'button', onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) }, '回到入口'),
-    h('p', { class: 'foot' }, 'ROUNDMEMO · 私密全景纪念相册'),
+    h('button', { class: 'btn climax-cta', type: 'button', onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }) }, '回到入口'),
+    h('p', { class: 'foot' }, 'ROUNDMEMO · 全景纪念相册'),
   ])
   root.append(climax)
 
@@ -168,8 +174,10 @@ export async function renderEntry(): Promise<void> {
   })
 }
 
-// —— 口令卡：口令态（错对统一防枚举）——
-function renderCodeForm(card: HTMLElement): void {
+// —— 口令卡：口令态（错对统一防枚举）。onBack 非空时（从"切换分组→输入新口令"进入）
+// 显示返回按钮，可回到欢迎卡；无会话时不留返回入口。——
+function renderCodeForm(card: HTMLElement, onBack: (() => void) | null): void {
+  card.replaceChildren() // 从欢迎态切回口令态时清掉旧内容
   const boxes = Array.from({ length: 8 }, () => h('input', {
     type: 'text',
     inputmode: 'numeric',
@@ -248,6 +256,7 @@ function renderCodeForm(card: HTMLElement): void {
       '进入这个时刻',
     ),
     h('p', { class: 'hint' }, '没有口令？向分享人索取'),
+    ...(onBack ? [h('button', { class: 'btn btn-ghost entry-back', type: 'button', onClick: onBack }, '← 返回')] : []),
   )
   // 延迟聚焦，避免移动端键盘直接弹出盖住卡片
   window.setTimeout(() => boxes[0].focus(), 300)
@@ -255,12 +264,48 @@ function renderCodeForm(card: HTMLElement): void {
 
 // —— 口令卡：已登录态 ——
 function renderWelcome(card: HTMLElement): void {
+  card.replaceChildren() // 从口令态返回时清掉旧内容
   const g = state.groups[0]
   card.append(
     h('p', { class: 'welcome' }, `欢迎回来，继续上次的 ${g.name}？`),
     h('button', { class: 'btn', type: 'button', onClick: () => navigate('/albums') }, '继续访问 →'),
-    h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => navigate('/albums') }, '切换分组'),
+    h('button', { class: 'btn btn-ghost', type: 'button', onClick: openChooser }, '切换分组'),
   )
+
+  // 切换分组：弹层列出已有分组可直接切，或输入新口令（加到当前会话）
+  function openChooser(): void {
+    const groupItems = state.groups.map((gr) => h(
+      'button',
+      {
+        class: 'chooser-item' + (gr.id === state.activeGroupId ? ' is-current' : ''),
+        type: 'button',
+        onClick: () => {
+          rememberGroup(gr.id)
+          close()
+          navigate('/albums')
+        },
+      },
+      [h('span', { class: 'chooser-name' }, gr.name), gr.id === state.activeGroupId ? h('span', { class: 'chooser-tag' }, '当前') : null],
+    ))
+    const newCode = h(
+      'button',
+      {
+        class: 'chooser-item chooser-new',
+        type: 'button',
+        onClick: () => {
+          close()
+          renderCodeForm(card, () => renderWelcome(card)) // 切回口令卡，输新口令并入当前会话
+        },
+      },
+      '输入新口令',
+    )
+    const { close } = openModal(h('div', { class: 'modal-body entry-chooser' }, [
+      h('h3', { class: 'modal-title' }, '切换分组'),
+      ...groupItems,
+      h('div', { class: 'chooser-divider', role: 'separator' }),
+      newCode,
+    ]))
+  }
 }
 
 // —— 滚动叙事（1:1 直映，无 lerp → 不回弹）——

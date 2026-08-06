@@ -1,11 +1,12 @@
 import { api, imgUrl, type Album } from '../api/client'
-import { state, rememberGroup } from '../state'
+import { state } from '../state'
 import { h, renderPage } from '../components/dom'
-import { icon } from '../components/icons'
+import { groupBrand, homeExitButtons, visitorDock } from '../components/visitorNav'
 import { viewToggle } from '../components/viewToggle'
 import { navigate } from '../router'
 
-// 相册列表：顶部玻璃栏（分组切换 + 视图切换 + 退出），主体为实色相册卡片。
+// 相册列表：顶栏（左：圆忆·分组品牌切换 / 中：视图 tab / 右：首页+彻底退出）
+// + 移动端底部 dock + 实色相册卡片。
 export async function renderAlbums(): Promise<void> {
   if (state.activeGroupId === 0) {
     navigate('/')
@@ -23,63 +24,16 @@ export async function renderAlbums(): Promise<void> {
     h('div', { class: 'page' }, [
       topBar(),
       h('main', { class: 'album-list' }, albums.length ? albums.map(albumCard) : [emptyState()]),
+      visitorDock('albums'),
     ]),
   )
 }
 
 function topBar(): HTMLElement {
-  const sel = h('select', {
-    class: 'group-switcher',
-    'aria-label': '切换分组',
-    onChange: (e: Event) => {
-      rememberGroup(Number((e.target as HTMLSelectElement).value))
-      void renderAlbums()
-    },
-  })
-  for (const g of state.groups) {
-    const opt = document.createElement('option')
-    opt.value = String(g.id)
-    opt.textContent = g.name
-    opt.selected = g.id === state.activeGroupId
-    sel.append(opt)
-  }
-
-  const viewSeg = viewToggle('grid')
-
-  const homeBtn = h(
-    'button',
-    {
-      class: 'icon-btn',
-      'aria-label': '返回首页',
-      title: '返回首页（保留当前访问）',
-      onClick: () => navigate('/'),
-    },
-    icon('home'),
-  )
-
-  const exitBtn = h(
-    'button',
-    {
-      class: 'icon-btn view-exit',
-      'aria-label': '彻底退出',
-      title: '彻底退出（清空当前访问，下次需重新输入口令）',
-      onClick: async () => {
-        try {
-          await api.revoke()
-        } catch {
-          /* 无会话时忽略 */
-        }
-        state.groups = []
-        state.activeGroupId = 0
-        navigate('/')
-      },
-    },
-    icon('logout'),
-  )
-
   return h('header', { class: 'glass topbar' }, [
-    h('div', { class: 'topbar-left' }, [sel]),
-    h('div', { class: 'topbar-right' }, [viewSeg, homeBtn, exitBtn]),
+    h('div', { class: 'topbar-left' }, [groupBrand()]),
+    h('div', { class: 'topbar-center' }, [viewToggle('albums')]),
+    h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
   ])
 }
 

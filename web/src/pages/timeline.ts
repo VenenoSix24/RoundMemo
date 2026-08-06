@@ -1,10 +1,12 @@
 import { api, imgUrl, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
+import { homeExitButtons, visitorDock } from '../components/visitorNav'
 import { photoDisplayTitle, viewToggle } from '../components/viewToggle'
 import { navigate } from '../router'
 
 // 时间线：按拍摄时间纵向轴，月份分组 + 粘性标签；每条目 = 缩略图 + 标题 + 时间 + 地点。
+// 返回按钮优先回来源页（从相册照片页进入则回该页），否则回相册列表；「相册」tab 同理。
 export async function renderTimeline(): Promise<void> {
   let photos: Photo[] = []
   try {
@@ -14,17 +16,29 @@ export async function renderTimeline(): Promise<void> {
     return
   }
 
+  const from = new URLSearchParams(location.search).get('from')
+  const albumsHref = from?.startsWith('/a/') ? from : '/albums'
+
+  const backBtn = h('button', {
+    class: 'icon-btn',
+    'aria-label': '返回',
+    onClick: () => {
+      if (from?.startsWith('/a/')) { navigate(from); return }
+      if (history.length > 1) history.back()
+      else navigate('/albums')
+    },
+  }, icon('arrow-left'))
+
   const groups = groupByMonth(photos)
   renderPage(
     h('div', { class: 'page' }, [
       h('header', { class: 'glass topbar' }, [
-        h('div', { class: 'topbar-left' }, [
-          h('button', { class: 'icon-btn', 'aria-label': '返回相册', onClick: () => navigate('/albums') }, icon('arrow-left')),
-          h('h1', { class: 'topbar-title font-accent' }, '时间线'),
-        ]),
-        h('div', { class: 'topbar-right' }, [viewToggle('timeline')]),
+        h('div', { class: 'topbar-left' }, [backBtn, h('h1', { class: 'topbar-title font-accent' }, '时间线')]),
+        h('div', { class: 'topbar-center' }, [viewToggle('timeline', { albumsHref })]),
+        h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
       ]),
       h('main', { class: 'timeline' }, groups.length ? groups.map(monthGroup) : [emptyState()]),
+      visitorDock('timeline', { albumsHref }),
     ]),
   )
 }
@@ -59,7 +73,7 @@ function timelineItem(p: Photo): HTMLElement {
   const title = photoDisplayTitle(p.title, p.filename)
   const time = p.shot_at ? fmtDay(p.shot_at) : '时间未知'
   const hasGPS = p.gps_lat != null && p.gps_lng != null
-  const loc = hasGPS ? `${p.gps_lat!.toFixed(4)}, ${p.gps_lng!.toFixed(4)}` : null
+  const loc = hasGPS ? `${p.gps_lat!.toFixed(4)}, ${p.gps_lng!.toFixed(4)}` : '地点未知'
   return h(
     'article',
     {
@@ -77,8 +91,7 @@ function timelineItem(p: Photo): HTMLElement {
         h('h3', { class: 'timeline-title font-accent' }, title),
         h('div', { class: 'timeline-meta' }, [
           h('span', { class: 'timeline-time' }, [icon('clock', 14), time]),
-          loc ? h('span', { class: 'timeline-loc' }, [icon('pin', 14), loc]) : null,
-          p.device_model ? h('span', { class: 'timeline-device text-muted' }, p.device_model) : null,
+          h('span', { class: 'timeline-loc' }, [icon('pin', 14), loc]),
         ]),
       ]),
     ],
