@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -88,6 +89,67 @@ func SetAlbumCover(db *sql.DB, albumID, photoID int64) error {
 	_, err := db.Exec(`UPDATE albums SET cover_photo_id=?, updated_at=? WHERE id=? AND cover_photo_id IS NULL`,
 		photoID, time.Now().Unix(), albumID)
 	return err
+}
+
+// PhotoPatch 照片元数据补丁。nil 字段表示不变；ClearXxx 表示显式清空（写 NULL）。
+type PhotoPatch struct {
+	Title       *string
+	Description *string
+	ShotAt      *int64
+	GPSLat      *float64
+	GPSLng      *float64
+	ClearShotAt bool
+	ClearGPSLat bool
+	ClearGPSLng bool
+}
+
+// UpdatePhoto 应用元数据补丁，仅更新发生了变化的字段，避免全行重写。
+func UpdatePhoto(db *sql.DB, id int64, p PhotoPatch) error {
+	sets := []string{}
+	args := []any{}
+	if p.Title != nil {
+		sets = append(sets, "title=?")
+		args = append(args, *p.Title)
+	}
+	if p.Description != nil {
+		sets = append(sets, "description=?")
+		args = append(args, *p.Description)
+	}
+	if p.ShotAt != nil || p.ClearShotAt {
+		sets = append(sets, "shot_at=?")
+		var v any
+		if p.ShotAt != nil {
+			v = *p.ShotAt
+		}
+		args = append(args, v)
+	}
+	if p.GPSLat != nil || p.ClearGPSLat {
+		sets = append(sets, "gps_lat=?")
+		var v any
+		if p.GPSLat != nil {
+			v = *p.GPSLat
+		}
+		args = append(args, v)
+	}
+	if p.GPSLng != nil || p.ClearGPSLng {
+		sets = append(sets, "gps_lng=?")
+		var v any
+		if p.GPSLng != nil {
+			v = *p.GPSLng
+		}
+		args = append(args, v)
+	}
+	if len(sets) == 0 {
+		// 空补丁幂等成功
+		_, err := GetPhoto(db, id)
+		return err
+	}
+	args = append(args, id)
+	res, err := db.Exec(`UPDATE photos SET `+strings.Join(sets, ", ")+` WHERE id=?`, args...)
+	if err != nil {
+		return err
+	}
+	return requireAffected(res)
 }
 
 type scanner interface{ Scan(dest ...any) error }
