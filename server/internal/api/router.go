@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"roundmemo/internal/config"
+	"roundmemo/internal/version"
 )
 
 // Server 持有各 handler 共享的依赖。所有状态显式传入，便于测试注入。
@@ -34,7 +35,11 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Logger)
 
 	r.Get("/api/health", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "roundmemo"})
+		writeJSON(w, http.StatusOK, map[string]string{
+			"status":  "ok",
+			"service": "roundmemo",
+			"version": version.Version,
+		})
 	})
 
 	r.Route("/api/admin", func(r chi.Router) {
