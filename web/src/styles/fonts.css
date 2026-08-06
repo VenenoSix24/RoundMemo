@@ -1,0 +1,17 @@
+/* 自托管字体（OFL 许可，Latin 子集）——隐私优先：不走 Google Fonts CDN。
+   变体文件：Cormorant Garamond 覆盖 500–600，Inter 覆盖 400–900（合成兜底）。 */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/Inter.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('/fonts/CormorantGaramond.woff2') format('woff2');
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}

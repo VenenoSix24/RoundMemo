@@ -9,6 +9,13 @@ interface Entry {
 
 const entries: Entry[] = []
 
+// 页面级清理钩子：路由切换前执行，用于移除滚动/鼠标监听、取消 rAF、复位滚动。
+let teardown: (() => void) | null = null
+
+export function setTeardown(fn: (() => void) | null): void {
+  teardown = fn
+}
+
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -44,6 +51,11 @@ export function startRouter(): void {
 }
 
 function dispatch(): void {
+  // 先清理上一页的监听，避免跨页泄漏（如入口页的滚动 scrubber）
+  if (teardown) {
+    teardown()
+    teardown = null
+  }
   for (const e of entries) {
     const m = location.pathname.match(e.pattern)
     if (m) {

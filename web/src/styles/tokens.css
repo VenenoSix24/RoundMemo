@@ -1,43 +1,44 @@
-/* 圆忆 RoundMemo 设计令牌（设计规范 §3）——唯一的色彩/字号/间距来源，禁止散落 hex */
+/* 圆忆 RoundMemo 设计令牌（设计规范 §3）——唯一的色彩/字号/间距来源，禁止散落 hex。
+   浅色为默认（纸质相册的纪念感）；系统偏好深色时切深空主题。暖金在两模式下不变，是品牌恒定锚。 */
 
 :root {
-  /* —— 背景：深空层次，不是纯黑 —— */
-  --bg-base: #0b0e14;
-  --bg-elevated: #11141c;
-  --bg-glass: rgba(255, 255, 255, 0.06);
-  --bg-glass-strong: rgba(255, 255, 255, 0.1);
+  /* —— 背景：纸面层次，暖白不是纯白 —— */
+  --bg-base: #faf8f4;
+  --bg-elevated: #ffffff;
+  --bg-glass: rgba(15, 20, 32, 0.04);
+  --bg-glass-strong: rgba(15, 20, 32, 0.08);
 
   /* —— 主轴：暖金（唯一品牌情感色）—— */
   --accent: #e8c36f;
-  --accent-soft: rgba(232, 195, 111, 0.16);
+  --accent-soft: rgba(232, 195, 111, 0.24);
   --accent-press: #cfab58;
   --accent-on: #1a1407;
 
   /* —— 辅色：青蓝（交互/链接）—— */
-  --secondary: #6fb8e8;
+  --secondary: #3f88b8;
 
-  /* —— 文字（深色底）—— */
-  --text-primary: #f2f0ec;
-  --text-secondary: #a8aab0;
-  --text-muted: #6b6e76;
+  /* —— 文字（浅底）—— */
+  --text-primary: #1a1610;
+  --text-secondary: #56524a;
+  --text-muted: #8a867d;
   --text-on-accent: #1a1407;
 
   /* —— 边框/分隔 —— */
-  --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --hairline: rgba(255, 255, 255, 0.06);
+  --border: rgba(15, 20, 32, 0.12);
+  --border-strong: rgba(15, 20, 32, 0.2);
+  --hairline: rgba(15, 20, 32, 0.06);
 
   /* —— 语义色 —— */
-  --danger: #e5654e;
-  --success: #67c29c;
+  --danger: #d2543e;
+  --success: #3f9e74;
 
   /* —— 玻璃高光 —— */
-  --glow-top: rgba(255, 255, 255, 0.16);
-  --glow-warm: rgba(232, 195, 111, 0.22);
+  --glow-top: rgba(255, 255, 255, 0.7);
+  --glow-warm: rgba(232, 195, 111, 0.3);
 
-  /* —— 阴影 —— */
-  --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.45);
-  --shadow-glass: 0 8px 24px rgba(0, 0, 0, 0.4);
+  /* —— 阴影（浅底阴影轻）—— */
+  --shadow-float: 0 8px 32px rgba(60, 45, 15, 0.14);
+  --shadow-glass: 0 1px 0 var(--glow-top) inset, 0 8px 24px rgba(60, 45, 15, 0.1);
 
   /* —— 字体 —— */
   --font-ui: 'Inter', 'Noto Sans SC', system-ui, -apple-system, sans-serif;
@@ -68,18 +69,34 @@
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --bg-base: #faf8f4;
-    --bg-elevated: #ffffff;
-    --bg-glass: rgba(15, 20, 32, 0.04);
-    --bg-glass-strong: rgba(15, 20, 32, 0.08);
-    --text-primary: #1a1610;
-    --text-secondary: #56524a;
-    --text-muted: #8a867d;
-    --border: rgba(15, 20, 32, 0.12);
-    --border-strong: rgba(15, 20, 32, 0.2);
-    --hairline: rgba(15, 20, 32, 0.06);
-    /* 暖金两模式不变，是品牌恒定锚 */
+    /* —— 背景：深空层次，不是纯黑 —— */
+    --bg-base: #0b0e14;
+    --bg-elevated: #11141c;
+    --bg-glass: rgba(255, 255, 255, 0.06);
+    --bg-glass-strong: rgba(255, 255, 255, 0.1);
+
+    --accent-soft: rgba(232, 195, 111, 0.16);
+    --secondary: #6fb8e8;
+
+    /* —— 文字（深色底）—— */
+    --text-primary: #f2f0ec;
+    --text-secondary: #a8aab0;
+    --text-muted: #6b6e76;
+
+    /* —— 边框/分隔 —— */
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --hairline: rgba(255, 255, 255, 0.06);
+
+    --danger: #e5654e;
+    --success: #67c29c;
+
+    --glow-top: rgba(255, 255, 255, 0.16);
+    --glow-warm: rgba(232, 195, 111, 0.22);
+
+    --shadow-float: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --shadow-glass: 0 1px 0 var(--glow-top) inset, 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 }
