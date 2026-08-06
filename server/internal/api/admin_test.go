@@ -13,10 +13,18 @@ import (
 
 	"roundmemo/internal/auth"
 	"roundmemo/internal/config"
+	"roundmemo/internal/storage"
 	"roundmemo/internal/store"
 )
 
 func newTestServer(t *testing.T) (*Server, *sql.DB) {
+	t.Helper()
+	s, db, _ := newTestServerWithRoot(t)
+	return s, db
+}
+
+// newTestServerWithRoot 额外返回存储根目录，供需要断言落盘文件的测试使用。
+func newTestServerWithRoot(t *testing.T) (*Server, *sql.DB, string) {
 	t.Helper()
 	dir := t.TempDir()
 	db, err := store.Open(filepath.Join(dir, "test.db"))
@@ -27,12 +35,17 @@ func newTestServer(t *testing.T) (*Server, *sql.DB) {
 	if err := store.Migrate(db); err != nil {
 		t.Fatal(err)
 	}
+	mediaRoot := filepath.Join(dir, "media")
+	st, err := storage.NewFS(mediaRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cfg := &config.Config{}
 	cfg.Server.SecureCookies = false
 	cfg.Security.AdminSessionTTLDays = 7
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewServer(db, cfg, logger), db
+	return NewServer(db, cfg, logger, st), db, mediaRoot
 }
 
 func seedOwner(t *testing.T, db *sql.DB, username, password string) {
