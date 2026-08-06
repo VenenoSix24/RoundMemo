@@ -1,7 +1,9 @@
 import { adminApi, type AdminAlbum } from '../../api/admin'
+import { imgUrl } from '../../api/client'
 import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
 import { confirmDialog, openModal, toast } from '../../components/modal'
+import { navigate } from '../../router'
 
 // 相册：一组全景的容器（本身中立，谁能看由分组绑定决定）。
 export async function renderAdminAlbums(main: HTMLElement): Promise<void> {
@@ -64,11 +66,14 @@ interface AlbumCtx {
 
 function albumCard(a: AdminAlbum, ctx: AlbumCtx): HTMLElement {
   return h('section', { class: 'album-admin-card' }, [
-    h('div', { class: 'album-admin-cover', 'aria-hidden': 'true' }, a.cover_sha ? h('img', { src: `/img/thumb256/${a.cover_sha}`, alt: '' }) : icon('image', 24)),
+    h('div', { class: 'album-admin-cover', 'aria-hidden': 'true' }, a.cover_sha
+      ? h('img', { src: imgUrl('thumb1024', a.cover_sha), alt: a.title, loading: 'lazy' })
+      : icon('image', 24)),
     h('div', { class: 'album-admin-body' }, [
       h('h3', { class: 'album-admin-title' }, a.title),
       h('p', { class: 'album-admin-desc text-muted' }, a.description || '—'),
       h('div', { class: 'album-admin-actions' }, [
+        h('button', { class: 'btn btn-sm btn-primary', type: 'button', onClick: () => navigate(`/admin/albums/${a.id}/photos`) }, [icon('image', 16), '照片']),
         h('button', { class: 'btn btn-sm btn-ghost', type: 'button', onClick: openEdit }, [icon('edit', 16), '编辑']),
         h('button', { class: 'btn btn-sm btn-danger', type: 'button', onClick: del }, [icon('trash', 16), '删除']),
       ]),

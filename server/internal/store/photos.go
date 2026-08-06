@@ -22,6 +22,7 @@ type Photo struct {
 	DeviceModel string
 	Title       *string
 	Description *string
+	Filename    string
 	CreatedAt   int64
 }
 
@@ -37,10 +38,10 @@ func CreatePhoto(db *sql.DB, p *Photo) (*Photo, bool, error) {
 
 	_, err := db.Exec(`
 		INSERT INTO photos(album_id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, created_at)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
+			shot_at, gps_lat, gps_lng, device_make, device_model, filename, created_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		p.AlbumID, p.StorageKey, p.SHA256, p.ByteSize, p.Width, p.Height,
-		p.ShotAt, p.GPSLat, p.GPSLng, p.DeviceMake, p.DeviceModel, time.Now().Unix())
+		p.ShotAt, p.GPSLat, p.GPSLng, p.DeviceMake, p.DeviceModel, p.Filename, time.Now().Unix())
 	if err != nil {
 		return nil, false, err
 	}
@@ -51,7 +52,7 @@ func CreatePhoto(db *sql.DB, p *Photo) (*Photo, bool, error) {
 func GetPhoto(db *sql.DB, id int64) (*Photo, error) {
 	row := db.QueryRow(`
 		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
 		FROM photos WHERE id=?`, id)
 	return scanPhoto(row)
 }
@@ -59,7 +60,7 @@ func GetPhoto(db *sql.DB, id int64) (*Photo, error) {
 func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 	row := db.QueryRow(`
 		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
 		FROM photos WHERE sha256=?`, sha)
 	return scanPhoto(row)
 }
@@ -68,7 +69,7 @@ func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]Photo, error) {
 	rows, err := db.Query(`
 		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
 		FROM photos WHERE album_id=? ORDER BY COALESCE(shot_at, created_at), id`, albumID)
 	if err != nil {
 		return nil, err
@@ -99,7 +100,7 @@ func ListPhotosByAlbums(db *sql.DB, albumIDs []int64) ([]Photo, error) {
 	}
 	rows, err := db.Query(`
 		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
 		FROM photos WHERE album_id IN (`+placeholders+`)
 		ORDER BY COALESCE(shot_at, created_at), id`, args...)
 	if err != nil {
@@ -120,6 +121,13 @@ func ListPhotosByAlbums(db *sql.DB, albumIDs []int64) ([]Photo, error) {
 // SetAlbumCover 在相册尚无封面时设为指定照片。
 func SetAlbumCover(db *sql.DB, albumID, photoID int64) error {
 	_, err := db.Exec(`UPDATE albums SET cover_photo_id=?, updated_at=? WHERE id=? AND cover_photo_id IS NULL`,
+		photoID, time.Now().Unix(), albumID)
+	return err
+}
+
+// SetAlbumCoverForce 强制设置封面（管理端手动设，覆盖当前封面）。
+func SetAlbumCoverForce(db *sql.DB, albumID, photoID int64) error {
+	_, err := db.Exec(`UPDATE albums SET cover_photo_id=?, updated_at=? WHERE id=?`,
 		photoID, time.Now().Unix(), albumID)
 	return err
 }
@@ -201,10 +209,10 @@ func scanPhoto(row scanner) (*Photo, error) {
 func scanPhotoInto(scan func(dest ...any) error, p *Photo) error {
 	var width, height, shotAt sql.NullInt64
 	var gpsLat, gpsLng sql.NullFloat64
-	var title, desc sql.NullString
+	var title, desc, filename sql.NullString
 	if err := scan(&p.ID, &p.AlbumID, &p.StorageKey, &p.SHA256, &p.ByteSize,
 		&width, &height, &shotAt, &gpsLat, &gpsLng,
-		&p.DeviceMake, &p.DeviceModel, &title, &desc, &p.CreatedAt); err != nil {
+		&p.DeviceMake, &p.DeviceModel, &title, &desc, &filename, &p.CreatedAt); err != nil {
 		return err
 	}
 	p.Width = nullIntPtr64(width)
@@ -214,6 +222,7 @@ func scanPhotoInto(scan func(dest ...any) error, p *Photo) error {
 	p.GPSLng = nullFloatPtr(gpsLng)
 	p.Title = nullStringPtr(title)
 	p.Description = nullStringPtr(desc)
+	p.Filename = filename.String
 	return nil
 }
 

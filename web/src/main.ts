@@ -13,6 +13,7 @@ import { renderAdminShell } from './pages/admin/shell'
 import { renderAdminGrants } from './pages/admin/grants'
 import { renderAdminGroups } from './pages/admin/groups'
 import { renderAdminAlbums } from './pages/admin/albums'
+import { renderAdminAlbumPhotos } from './pages/admin/adminPhotos'
 import { renderAdminImport } from './pages/admin/import'
 import { renderAdminSessions } from './pages/admin/sessions'
 
@@ -27,6 +28,7 @@ route('/s/:token', (p) => void renderShare(p.token))
 route('/admin', () => navigate('/admin/grants'))
 route('/admin/login', () => void renderAdminLogin())
 route('/admin/albums', () => void renderAdminShell('albums', renderAdminAlbums))
+route('/admin/albums/:albumId/photos', (p) => void renderAdminShell('albums', (m) => renderAdminAlbumPhotos(p.albumId, m)))
 route('/admin/groups', () => void renderAdminShell('groups', renderAdminGroups))
 route('/admin/grants', () => void renderAdminShell('grants', renderAdminGrants))
 route('/admin/import', () => void renderAdminShell('import', renderAdminImport))

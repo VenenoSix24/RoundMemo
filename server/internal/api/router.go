@@ -83,7 +83,10 @@ func (s *Server) Router() http.Handler {
 				r.Post("/albums", s.handleCreateAlbum)
 				r.Patch("/albums/{id}", s.handleUpdateAlbum)
 				r.Delete("/albums/{id}", s.handleDeleteAlbum)
+				r.Get("/albums/{id}/photos", s.handleListAlbumPhotos)
+				r.Post("/albums/{id}/cover", s.handleSetAlbumCover)
 				r.Patch("/photos/{id}", s.handleUpdatePhoto)
+				r.Post("/account", s.handleAdminAccount)
 
 				r.Get("/groups", s.handleListGroups)
 				r.Post("/groups", s.handleCreateGroup)
