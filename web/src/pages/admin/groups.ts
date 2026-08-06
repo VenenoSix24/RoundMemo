@@ -21,7 +21,7 @@ export async function renderAdminGroups(main: HTMLElement): Promise<void> {
   const header = h('div', { class: 'admin-section-head' }, [
     h('div', {}, [
       h('h2', { class: 'admin-section-title' }, '分组'),
-      h('p', { class: 'admin-section-desc text-muted' }, '分组决定"谁能看哪些相册"。绑定后组内成员登录即可见。'),
+      h('p', { class: 'admin-section-desc text-muted' }, '分组决定"谁能看哪些相册"。绑定后，通过该分组授权（口令或分享链接）的访客即可见。'),
     ]),
     h('button', { class: 'btn btn-primary', type: 'button', onClick: openNew }, [icon('plus', 18), '新建分组']),
   ])

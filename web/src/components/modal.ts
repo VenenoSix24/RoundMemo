@@ -53,3 +53,29 @@ export function toast(msg: string): void {
   document.body.append(t)
   window.setTimeout(() => t.remove(), 2200)
 }
+
+// 复制到剪贴板：优先异步 Clipboard API；失败（非安全上下文/权限被拒）时
+// 退化为 execCommand('copy') 临时 textarea（LAN http 下可用）。
+export function copyText(text: string): Promise<void> {
+  const legacy = (): Promise<void> =>
+    new Promise((resolve, reject) => {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.append(ta)
+        ta.select()
+        const ok = document.execCommand('copy')
+        ta.remove()
+        if (ok) resolve()
+        else reject(new Error('复制失败'))
+      } catch {
+        reject(new Error('复制失败'))
+      }
+    })
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => legacy())
+  }
+  return legacy()
+}

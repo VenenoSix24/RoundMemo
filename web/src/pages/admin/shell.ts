@@ -1,6 +1,7 @@
 import { adminApi } from '../../api/admin'
 import { h, renderPage } from '../../components/dom'
 import { icon } from '../../components/icons'
+import { openModal, toast } from '../../components/modal'
 import { navigate } from '../../router'
 
 // Owner 后台壳：顶栏（品牌 + 身份 + 退出）+ 桌面左抽屉 / 移动底部 tab 导航。
@@ -57,7 +58,10 @@ export async function renderAdminShell(active: AdminTab, build: (main: HTMLEleme
         h('span', { class: 'admin-topbar-title' }, '管理后台'),
       ]),
       h('div', { class: 'admin-topbar-right' }, [
-        ownerBadge({ avatar: me.username[0]?.toUpperCase() ?? 'O', name: me.username }),
+        h('button', { class: 'admin-owner', type: 'button', title: '修改账号', onClick: () => openAccountModal(me.username) }, [
+          h('span', { class: 'admin-owner-avatar' }, me.username[0]?.toUpperCase() ?? 'O'),
+          h('span', { class: 'admin-owner-name' }, me.username),
+        ]),
         logoutBtn,
       ]),
     ]),
@@ -68,10 +72,39 @@ export async function renderAdminShell(active: AdminTab, build: (main: HTMLEleme
   await build(main)
 }
 
-// 顶栏 Owner 头像 + 用户名
-export function ownerBadge(o: { avatar: string; name: string }): HTMLElement {
-  return h('span', { class: 'admin-owner' }, [
-    h('span', { class: 'admin-owner-avatar' }, o.avatar),
-    h('span', { class: 'admin-owner-name' }, o.name),
-  ])
+// 修改账号模态：验证当前密码后可改用户名/密码。
+function openAccountModal(currentUsername: string): void {
+  const cur = h('input', { type: 'password', class: 'admin-input', autocomplete: 'current-password', placeholder: '当前密码', 'aria-label': '当前密码' })
+  const name = h('input', { class: 'admin-input', value: currentUsername, placeholder: '新用户名（可留空不变）', 'aria-label': '新用户名' })
+  const pw = h('input', { type: 'password', class: 'admin-input', autocomplete: 'new-password', placeholder: '新密码（至少 8 位，可留空不变）', 'aria-label': '新密码' })
+  const err = h('p', { class: 'admin-form-err', role: 'alert' }, '')
+  const { close } = openModal(h('div', { class: 'modal-body' }, [
+    h('h3', { class: 'modal-title' }, '修改账号'),
+    h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '当前密码'), cur]),
+    h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '新用户名'), name]),
+    h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '新密码'), pw]),
+    err,
+    h('div', { class: 'modal-actions' }, [
+      h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => close() }, '取消'),
+      h('button', { class: 'btn btn-primary', type: 'button', onClick: save }, '保存'),
+    ]),
+  ]))
+
+  async function save(): Promise<void> {
+    const uname = name.value.trim()
+    const pass = pw.value
+    if (!cur.value) { err.textContent = '请输入当前密码'; return }
+    if (uname === currentUsername && !pass) { err.textContent = '没有要修改的内容'; return }
+    try {
+      const body: { current_password: string; username?: string; password?: string } = { current_password: cur.value }
+      if (uname && uname !== currentUsername) body.username = uname
+      if (pass) body.password = pass
+      await adminApi.account(body)
+      close()
+      toast('账号已更新')
+      navigate('/admin/grants') // 刷新顶栏显示新用户名
+    } catch (e) {
+      err.textContent = e instanceof Error ? e.message : '保存失败'
+    }
+  }
 }

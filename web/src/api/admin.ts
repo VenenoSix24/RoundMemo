@@ -45,6 +45,22 @@ export interface AdminSession {
   user_agent: string
 }
 
+export interface AdminPhoto {
+  id: number
+  album_id: number
+  sha256: string
+  width: number | null
+  height: number | null
+  shot_at: number | null
+  gps_lat: number | null
+  gps_lng: number | null
+  device_make: string
+  device_model: string
+  title: string | null
+  description: string | null
+  filename: string
+}
+
 export interface ImportResult {
   filename: string
   status: 'added' | 'duplicate' | 'error'
@@ -124,6 +140,15 @@ export const adminApi = {
   updateAlbum: (id: number, patch: { title?: string; description?: string | null }) =>
     adminReq<AdminAlbum>(`/api/admin/albums/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteAlbum: (id: number) => adminReq<void>(`/api/admin/albums/${id}`, { method: 'DELETE' }),
+  albumPhotos: (albumId: number) => adminReq<{ photos: AdminPhoto[] }>(`/api/admin/albums/${albumId}/photos`),
+  setCover: (albumId: number, photoId: number) =>
+    adminReq<{ ok: boolean }>(`/api/admin/albums/${albumId}/cover`, { method: 'POST', body: JSON.stringify({ photo_id: photoId }) }),
+  updatePhoto: (photoId: number, patch: Record<string, unknown>) =>
+    adminReq<AdminPhoto>(`/api/admin/photos/${photoId}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+
+  // 账号
+  account: (body: { current_password: string; username?: string; password?: string }) =>
+    adminReq<{ username: string }>('/api/admin/account', { method: 'POST', body: JSON.stringify(body) }),
 
   // 分组
   groups: () => adminReq<{ groups: AdminGroup[] }>('/api/admin/groups'),

@@ -1,7 +1,7 @@
 import { adminApi, grantShareUrl, grantStatus, type AdminGrant } from '../../api/admin'
 import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
-import { confirmDialog, openModal, toast } from '../../components/modal'
+import { confirmDialog, copyText, openModal, toast } from '../../components/modal'
 import { navigate } from '../../router'
 
 // 授权管理（Owner 后台核心）：grant 行 = 标签 + 数字码/分享链接（可复制）
@@ -214,7 +214,7 @@ function copyField(key: string, display: HTMLElement, value: string): HTMLElemen
         'aria-label': `复制${key}`,
         title: '复制',
         onClick: () => {
-          void navigator.clipboard.writeText(value).then(() => toast('已复制到剪贴板')).catch(() => toast('复制失败'))
+          void copyText(value).then(() => toast('已复制到剪贴板')).catch(() => toast('复制失败，请手动选择'))
         },
       }, icon('copy', 16)),
     ]),
