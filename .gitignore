@@ -12,7 +12,7 @@ data/
 *.db-shm
 
 # Go 构建产物
-roundmemo
+server/roundmemo
 bin/
 
 # 前端依赖与构建
