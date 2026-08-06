@@ -122,6 +122,55 @@ func TestPhotoUploadUnknownAlbum(t *testing.T) {
 	}
 }
 
+func TestPhotoMetadataEdit(t *testing.T) {
+	s, db := newTestServer(t)
+	seedOwner(t, db, "admin", "correct-password")
+	cookie := loginOwner(t, s, "admin", "correct-password")
+	doRequest(t, s, http.MethodPost, "/api/admin/albums", `{"title":"旅行"}`, cookie)
+	rr := uploadPhoto(t, s, cookie, 1, testJPEG(t, 800, 400))
+	if !strings.Contains(rr.Body.String(), `"added"`) {
+		t.Fatalf("上传失败: %s", rr.Body.String())
+	}
+
+	// 设置标题 + GPS
+	rr = doRequest(t, s, http.MethodPatch, "/api/admin/photos/1",
+		`{"title":"毕业旅行","gps_lat":39.9,"gps_lng":116.4}`, cookie)
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"title":"毕业旅行"`) ||
+		!strings.Contains(rr.Body.String(), `"gps_lat":39.9`) {
+		t.Fatalf("设置元数据失败, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// 设置拍摄时间
+	rr = doRequest(t, s, http.MethodPatch, "/api/admin/photos/1", `{"shot_at":1754476798}`, cookie)
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"shot_at":1754476798`) {
+		t.Fatalf("设置拍摄时间失败, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// GPS 必须成对：只给 lat 应 400
+	rr = doRequest(t, s, http.MethodPatch, "/api/admin/photos/1", `{"gps_lat":10}`, cookie)
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("只给 gps_lat 应 400, got %d", rr.Code)
+	}
+
+	// 清空 GPS
+	rr = doRequest(t, s, http.MethodPatch, "/api/admin/photos/1", `{"gps_lat":null,"gps_lng":null}`, cookie)
+	if rr.Code != http.StatusOK || !strings.Contains(rr.Body.String(), `"gps_lat":null`) {
+		t.Fatalf("清空 GPS 失败, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// 不存在照片应 404
+	rr = doRequest(t, s, http.MethodPatch, "/api/admin/photos/999", `{"title":"x"}`, cookie)
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("编辑不存在照片应 404, got %d", rr.Code)
+	}
+
+	// 空补丁幂等成功
+	rr = doRequest(t, s, http.MethodPatch, "/api/admin/photos/1", `{}`, cookie)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("空补丁应 200, got %d", rr.Code)
+	}
+}
+
 func sha256Of(data []byte) []byte {
 	h := sha256.New()
 	h.Write(data)

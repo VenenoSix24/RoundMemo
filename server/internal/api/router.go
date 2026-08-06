@@ -54,6 +54,7 @@ func (s *Server) Router() http.Handler {
 				r.Post("/albums", s.handleCreateAlbum)
 				r.Patch("/albums/{id}", s.handleUpdateAlbum)
 				r.Delete("/albums/{id}", s.handleDeleteAlbum)
+				r.Patch("/photos/{id}", s.handleUpdatePhoto)
 
 				r.Get("/groups", s.handleListGroups)
 				r.Post("/groups", s.handleCreateGroup)
