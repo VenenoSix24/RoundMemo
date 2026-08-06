@@ -25,3 +25,21 @@ jobs:
         run: go test ./...
       - name: go build
         run: go build -o roundmemo ./cmd/roundmemo
+
+  frontend:
+    name: 前端 (tsc + vite build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: 安装依赖
+        run: npm ci
+      - name: 类型检查 + 构建
+        run: npm run build
