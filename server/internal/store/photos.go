@@ -64,11 +64,44 @@ func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 	return scanPhoto(row)
 }
 
+// ListPhotosByAlbum 按相册取照片，拍摄时间升序（无时间按导入时间兜底）。
 func ListPhotosByAlbum(db *sql.DB, albumID int64) ([]Photo, error) {
 	rows, err := db.Query(`
 		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
 			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, created_at
-		FROM photos WHERE album_id=? ORDER BY shot_at, id`, albumID)
+		FROM photos WHERE album_id=? ORDER BY COALESCE(shot_at, created_at), id`, albumID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	photos := []Photo{}
+	for rows.Next() {
+		var p Photo
+		if err := scanPhotoInto(rows.Scan, &p); err != nil {
+			return nil, err
+		}
+		photos = append(photos, p)
+	}
+	return photos, rows.Err()
+}
+
+// ListPhotosByAlbums 跨多个相册取照片（时间线视图用），按拍摄时间升序。
+// 动态 IN 参数，相册数量极少，安全性无虞。
+func ListPhotosByAlbums(db *sql.DB, albumIDs []int64) ([]Photo, error) {
+	if len(albumIDs) == 0 {
+		return []Photo{}, nil
+	}
+	placeholders := strings.Repeat("?,", len(albumIDs))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]any, len(albumIDs))
+	for i, id := range albumIDs {
+		args[i] = id
+	}
+	rows, err := db.Query(`
+		SELECT id, album_id, storage_key, sha256, byte_size, width, height,
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, created_at
+		FROM photos WHERE album_id IN (`+placeholders+`)
+		ORDER BY COALESCE(shot_at, created_at), id`, args...)
 	if err != nil {
 		return nil, err
 	}

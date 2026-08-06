@@ -38,23 +38,44 @@ func ListAlbums(db *sql.DB) ([]Album, error) {
 
 	albums := []Album{}
 	for rows.Next() {
-		var a Album
-		var desc sql.NullString
-		var coverID sql.NullInt64
-		if err := rows.Scan(&a.ID, &a.Title, &desc, &coverID, &a.SortKey, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		a, err := scanAlbum(rows)
+		if err != nil {
 			return nil, err
 		}
-		a.Description = nullStringPtr(desc)
-		a.CoverPhotoID = nullIntPtr(coverID)
-		albums = append(albums, a)
+		albums = append(albums, *a)
+	}
+	return albums, rows.Err()
+}
+
+// AlbumsForGroup 返回分组当前绑定的相册（访客按分组切换时用）。
+func AlbumsForGroup(db *sql.DB, groupID int64) ([]Album, error) {
+	rows, err := db.Query(`
+		SELECT a.id, a.title, a.description, a.cover_photo_id, a.sort_key, a.created_at, a.updated_at
+		FROM albums a JOIN group_albums ga ON ga.album_id = a.id
+		WHERE ga.group_id=? ORDER BY a.created_at DESC, a.id DESC`, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	albums := []Album{}
+	for rows.Next() {
+		a, err := scanAlbum(rows)
+		if err != nil {
+			return nil, err
+		}
+		albums = append(albums, *a)
 	}
 	return albums, rows.Err()
 }
 
 func GetAlbum(db *sql.DB, id int64) (*Album, error) {
-	row := db.QueryRow(`
+	return scanAlbum(db.QueryRow(`
 		SELECT id, title, description, cover_photo_id, sort_key, created_at, updated_at
-		FROM albums WHERE id=?`, id)
+		FROM albums WHERE id=?`, id))
+}
+
+func scanAlbum(row scanner) (*Album, error) {
 	var a Album
 	var desc sql.NullString
 	var coverID sql.NullInt64

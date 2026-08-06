@@ -44,8 +44,10 @@ func newTestServerWithRoot(t *testing.T) (*Server, *sql.DB, string) {
 	cfg := &config.Config{}
 	cfg.Server.SecureCookies = false
 	cfg.Security.AdminSessionTTLDays = 7
+	cfg.Security.SessionTTLDays = 30
+	cfg.Security.CodeRatePerHour = 10
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return NewServer(db, cfg, logger, st), db, mediaRoot
+	return NewServer(db, cfg, logger, st, []byte("test-secret-32-bytes-long-for-hmac")), db, mediaRoot
 }
 
 func seedOwner(t *testing.T, db *sql.DB, username, password string) {

@@ -78,11 +78,29 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 图片签名密钥需跨重启稳定，首次启动生成并落盘。
+	secret, err := auth.LoadOrCreateSecret(cfg.Storage.DataDir)
+	if err != nil {
+		logger.Error("加载签名密钥失败", "err", err)
+		os.Exit(1)
+	}
+
+	// 定期清理过期会话，防 sessions 表无限膨胀。
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := store.PurgeExpiredSessions(db, time.Now().Unix()); err != nil {
+				logger.Warn("清理过期会话失败", "err", err)
+			}
+		}
+	}()
+
 	// 大上传与图片流式分发不能套全局 Read/WriteTimeout（会切断慢请求），
 	// 常规请求的限时由路由层的 chi Timeout 中间件承担。
 	srv := &http.Server{
 		Addr:              cfg.Server.Listen,
-		Handler:           api.NewServer(db, cfg, logger, st).Router(),
+		Handler:           api.NewServer(db, cfg, logger, st, secret).Router(),
 		ReadHeaderTimeout: 15 * time.Second,
 	}
 
