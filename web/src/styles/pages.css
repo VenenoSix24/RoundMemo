@@ -934,7 +934,8 @@
 
 .viewer-pill {
   position: absolute;
-  top: 12px;
+  top: auto;
+  bottom: max(16px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
   z-index: 30;
@@ -942,10 +943,12 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
+  max-width: calc(100vw - 16px);
   transition: opacity var(--dur-med) var(--ease-out), transform var(--dur-med) var(--ease-out);
 }
 
-.viewer-middle {
+.viewer-middle,
+.viewer-actions {
   display: flex;
   align-items: center;
   gap: 2px;
@@ -975,21 +978,23 @@
   background: var(--accent-soft);
 }
 
+/* 照片信息：左上浮层（玻璃卡，远离拇指热区） */
 .viewer-drawer {
   position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translate(-50%, 0);
+  top: max(16px, env(safe-area-inset-top));
+  left: 16px;
   z-index: 25;
-  width: min(560px, 100%);
-  border-radius: var(--r-xl) var(--r-xl) 0 0;
-  max-height: 70dvh;
+  width: min(340px, calc(100vw - 32px));
+  border-radius: var(--r-xl);
+  max-height: calc(100dvh - 32px);
   overflow-y: auto;
-  transition: transform 240ms var(--ease-out);
+  transition: transform 240ms var(--ease-out), opacity var(--dur-med) var(--ease-out);
 }
 
 .viewer-drawer[aria-hidden='true'] {
-  transform: translate(-50%, 110%);
+  transform: translateY(-16px);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .drawer-inner {
@@ -1033,17 +1038,6 @@
   }
   .photo-grid {
     grid-template-columns: repeat(3, 1fr);
-  }
-  .viewer-drawer {
-    left: auto;
-    right: 16px;
-    bottom: 16px;
-    transform: translateY(0);
-    border-radius: var(--r-xl);
-    max-height: calc(100dvh - 100px);
-  }
-  .viewer-drawer[aria-hidden='true'] {
-    transform: translateY(120%);
   }
 }
 
