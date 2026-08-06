@@ -20,6 +20,7 @@ import (
 	"roundmemo/internal/auth"
 	"roundmemo/internal/config"
 	"roundmemo/internal/store"
+	"roundmemo/internal/version"
 )
 
 func main() {
@@ -81,7 +82,7 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
-		logger.Info("roundmemo 启动", "addr", cfg.Server.Listen)
+		logger.Info("roundmemo 启动", "version", version.Version, "addr", cfg.Server.Listen)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("HTTP 服务异常退出", "err", err)
 			stop <- syscall.SIGTERM
