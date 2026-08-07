@@ -9,7 +9,7 @@ import (
 // 一张照片可属多个相册；「从相册移除」只解引用，「照片池删除」才真删。
 
 const photoCols = `p.id, p.storage_key, p.sha256, p.byte_size, p.width, p.height,
-	p.shot_at, p.gps_lat, p.gps_lng, p.device_make, p.device_model, p.title, p.description, p.filename, p.created_at`
+	p.shot_at, p.gps_lat, p.gps_lng, p.device_make, p.device_model, p.title, p.description, p.location_name, p.filename, p.created_at`
 
 // AddPhotosToAlbum 把池中照片挂到相册（已挂的不重复）。
 func AddPhotosToAlbum(db *sql.DB, albumID int64, photoIDs []int64) error {

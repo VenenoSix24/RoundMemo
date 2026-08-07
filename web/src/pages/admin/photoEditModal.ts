@@ -6,10 +6,11 @@ import { openModal, toast } from '../../components/modal'
 export function openPhotoEditModal(p: AdminPhoto, onSaved: (p: AdminPhoto) => void): void {
   const title = h('input', { class: 'admin-input', value: p.title ?? '', placeholder: '标题（留空显示文件名）', 'aria-label': '标题' })
   const desc = h('input', { class: 'admin-input', value: p.description ?? '', placeholder: '描述（可选）', 'aria-label': '描述' })
+  const location = h('input', { class: 'admin-input', value: p.location_name ?? '', placeholder: '地点（如「济南市历下区」）', 'aria-label': '地点' })
   const shotAt = h('input', { type: 'datetime-local', class: 'admin-input', value: p.shot_at != null ? toLocalInput(p.shot_at) : '', 'aria-label': '拍摄时间' })
   const gpsLat = h('input', { type: 'number', step: 'any', class: 'admin-input', value: p.gps_lat != null ? String(p.gps_lat) : '', placeholder: '纬度，如 37.5202', 'aria-label': '纬度' })
   const gpsLng = h('input', { type: 'number', step: 'any', class: 'admin-input', value: p.gps_lng != null ? String(p.gps_lng) : '', placeholder: '经度，如 121.3517', 'aria-label': '经度' })
-  const gpsHint = h('p', { class: 'admin-form-hint text-muted' }, '经纬度需同时填写或同时留空（后续可自动反查地名）')
+  const gpsHint = h('p', { class: 'admin-form-hint text-muted' }, '经纬度需同时填写或同时留空（后续可自动反查地名）；自定义地点优先展示')
   const err = h('p', { class: 'admin-form-err', role: 'alert' }, '')
   const { close } = openModal(h('div', { class: 'modal-body' }, [
     h('h3', { class: 'modal-title' }, '编辑照片信息'),
@@ -17,6 +18,7 @@ export function openPhotoEditModal(p: AdminPhoto, onSaved: (p: AdminPhoto) => vo
     h('p', { class: 'modal-sub text-muted' }, '该信息为照片池共用，保存后所有相册同步生效。'),
     h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '标题'), title]),
     h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '描述'), desc]),
+    h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '地点'), location]),
     h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '拍摄时间'), shotAt]),
     h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '纬度'), gpsLat]),
     h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '经度'), gpsLng]),
@@ -36,6 +38,7 @@ export function openPhotoEditModal(p: AdminPhoto, onSaved: (p: AdminPhoto) => vo
       const patch: Record<string, unknown> = {
         title: title.value.trim() || '',
         description: desc.value.trim() || '',
+        location_name: location.value.trim() || '',
         shot_at: shotAt.value ? Math.floor(new Date(shotAt.value).getTime() / 1000) : null,
       }
       if (lat && lng) {

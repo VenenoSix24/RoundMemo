@@ -104,7 +104,9 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     infoTitle.textContent = photoDisplayTitle(p.title, p.filename)
     const meta: Array<{ icon: string; text: string }> = []
     if (p.shot_at) meta.push({ icon: 'clock', text: fmtDate(p.shot_at) })
-    if (p.gps_lat != null && p.gps_lng != null) meta.push({ icon: 'pin', text: `${p.gps_lat.toFixed(4)}, ${p.gps_lng.toFixed(4)}` })
+    // 自定义地点优先，其次经纬度坐标
+    if (p.location_name) meta.push({ icon: 'pin', text: p.location_name })
+    else if (p.gps_lat != null && p.gps_lng != null) meta.push({ icon: 'pin', text: `${p.gps_lat.toFixed(4)}, ${p.gps_lng.toFixed(4)}` })
     const device = [p.device_make, p.device_model].filter(Boolean).join(' ')
     if (device) meta.push({ icon: 'camera', text: device })
     infoMeta.replaceChildren(...meta.map((m) => h('span', { class: 'viewer-info-item' }, [icon(m.icon, 14), m.text])))

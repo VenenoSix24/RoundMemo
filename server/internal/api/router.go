@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -25,6 +26,9 @@ type Server struct {
 	storage     storage.Storage
 	secret      []byte
 	codeLimiter *rateLimiter
+	// restoreMu 串行化备份恢复：恢复会关闭并替换运行中的 DB，期间任何并发
+	// 请求都会撞上已关闭的句柄，故恢复操作全局互斥。
+	restoreMu sync.Mutex
 }
 
 func NewServer(db *sql.DB, cfg *config.Config, logger *slog.Logger, st storage.Storage, secret []byte) *Server {
@@ -109,6 +113,11 @@ func (s *Server) Router() http.Handler {
 				r.Delete("/grants/{id}", s.handleDeleteGrant)
 				r.Get("/grants/{id}/sessions", s.handleGrantSessions)
 				r.Delete("/sessions/{sid}", s.handleDeleteSession)
+
+				r.Post("/backups", s.handleCreateBackup)
+				r.Get("/backups", s.handleListBackups)
+				r.Get("/backups/{name}", s.handleDownloadBackup)
+				r.Delete("/backups/{name}", s.handleDeleteBackup)
 			})
 		})
 
@@ -117,6 +126,7 @@ func (s *Server) Router() http.Handler {
 			r.Use(s.requireAdmin)
 			r.Post("/photos", s.handleUploadPhotos)
 			r.Post("/import/local", s.handleImportLocal)
+			r.Post("/backups/restore", s.handleRestoreBackup)
 		})
 	})
 
