@@ -98,40 +98,73 @@ export class PanoramaViewer {
 
   private applyTexture(tex: THREE.Texture): void {
     const oldMat = this.mesh.material as THREE.MeshBasicMaterial
-    this.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff })
+    const oldTex = oldMat.map
     this.dirty = true
-
-    // 跨纹理切换用叠加球淡出旧纹理：旧纹理透明度降低时下方已是新图，
-    // 不会露出黑色画布背景（帧抖/黑缝的根因）。
-    if (oldMat.map && oldMat !== this.mesh.material) {
-      const overlay = new THREE.Mesh(
-        this.mesh.geometry,
-        new THREE.MeshBasicMaterial({ map: oldMat.map, transparent: true, opacity: 1 }),
-      )
-      this.scene.add(overlay)
-      // 关键：先同步渲染一帧把新纹理上传到 GPU，再开始淡出计时。否则首次上传
-      // 阻塞主线程（全景约 113MB），start 采集过早，阻塞后首帧 t 已超 1，
-      // 过渡瞬间完成——即"第一次切图没动画，缓存后才有"。
+    // 首张或重复应用：直接上纹理并复位视角
+    if (!oldTex || oldTex === tex) {
+      this.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff })
+      this.resetForNewPhoto()
       this.renderer.render(this.scene, this.camera)
-      const start = performance.now()
-      const step = () => {
-        const t = Math.min(1, (performance.now() - start) / 450)
-        ;(overlay.material as THREE.MeshBasicMaterial).opacity = 1 - t
-        this.dirty = true // 关键：每帧标记脏，主循环才会重绘淡出过程
-        if (t < 1) requestAnimationFrame(step)
-        else this.scene.remove(overlay)
-      }
-      step()
-    } else {
-      // 兜底：立即渲染一帧，确保新纹理不依赖下一次滚动/拖拽才上屏
-      this.renderer.render(this.scene, this.camera)
+      return
     }
+    // 切图过渡：旧图淡出（视角不动）→ 暗底上复位视角并换新图 → 新图淡入。
+    // 旧图全程不改变视角，避免"旧图先跳一下再切"的割裂感；暗底复用深空底色。
+    const geo = this.mesh.geometry
+    const oldOverlay = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: oldTex, transparent: true, opacity: 1 }))
+    this.scene.add(oldOverlay)
+    this.mesh.material = new THREE.MeshBasicMaterial({ color: 0x0b0e14 })
+    const t0 = performance.now()
+    const fadeOut = (): void => {
+      const t = Math.min(1, (performance.now() - t0) / 140)
+      ;(oldOverlay.material as THREE.MeshBasicMaterial).opacity = 1 - t
+      this.dirty = true
+      if (t < 1) {
+        requestAnimationFrame(fadeOut)
+        return
+      }
+      this.scene.remove(oldOverlay)
+      // 暗屏上瞬切视角（无感），换新图后淡入
+      this.mesh.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, color: 0xffffff })
+      this.resetForNewPhoto()
+      this.renderer.render(this.scene, this.camera)
+      const t1 = performance.now()
+      const fadeIn = (): void => {
+        const u = Math.min(1, (performance.now() - t1) / 140)
+        ;(this.mesh.material as THREE.MeshBasicMaterial).opacity = u
+        this.dirty = true
+        if (u < 1) {
+          requestAnimationFrame(fadeIn)
+          return
+        }
+        this.mesh.material = new THREE.MeshBasicMaterial({ map: tex, color: 0xffffff })
+        this.dirty = true
+      }
+      fadeIn()
+    }
+    fadeOut()
   }
 
   // —— 视角控制 ——
   resetView(): void {
     if (this.gyroOn) this.setGyro(false) // 先切回触摸（会同步当前朝向到 yaw/pitch）
     this.animateViewTo(DEFAULT_YAW, 0)
+  }
+
+  // 切换照片时重置视角：新照片从默认朝向+缩放进入，不继承上一张的拖动/缩放。
+  // 瞬切即可——过渡的淡入淡出由 applyTexture 承担，此处复位发生在暗屏上，无感。
+  // 陀螺仪开启时不重置（朝向由设备决定，切图应保持连续）。
+  resetForNewPhoto(): void {
+    if (this.gyroOn) return
+    if (this.resetting) {
+      cancelAnimationFrame(this.resetRaf)
+      this.resetting = false
+    }
+    this.yaw = DEFAULT_YAW
+    this.pitch = 0
+    this.camera.fov = DEFAULT_FOV
+    this.camera.updateProjectionMatrix()
+    this.applyManualView()
+    this.dirty = true
   }
 
   // 视角补间：从当前 yaw/pitch/fov 缓动到目标（重置朝向用），任意拖动立即中断。
