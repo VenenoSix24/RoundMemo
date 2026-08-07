@@ -1,0 +1,17 @@
+# RoundMemo Caddyfile 模板
+# 由 deploy/install.sh 替换 <DOMAIN> 后安装到 /etc/caddy/Caddyfile.d/roundmemo
+# 使用前确认主 Caddyfile（/etc/caddy/Caddyfile）已 import 该目录：
+#   import /etc/caddy/Caddyfile.d/*
+
+<DOMAIN> {
+    # 自动 HTTPS：Caddy 会为 <DOMAIN> 向 Let's Encrypt 签发并续期证书
+    reverse_proxy 127.0.0.1:8787
+
+    # 响应压缩：zstd 优先，回退 gzip
+    encode zstd gzip
+
+    # 上传体上限：后端 admin_photos.go maxUploadBytes 为 512MB，此处留余量对齐
+    request_body {
+        max_size 600MB
+    }
+}
