@@ -1,8 +1,10 @@
 import { h } from './dom'
 import { icon } from './icons'
 import { navigate } from '../router'
+import { withDockIndicator } from './dockIndicator'
 
-// 视图切换：相册 / 时间线 / 地图（占位）。桌面端顶栏居中分段控件，移动端由 dock 承担。
+// 视图切换：相册 / 时间线 / 地图（占位）。桌面端顶栏居中分段控件（滑动指示器），
+// 移动端由 dock 承担。
 
 export type VisitorView = 'albums' | 'timeline' | 'map'
 
@@ -23,17 +25,22 @@ export function viewToggle(current: VisitorView, ctx: ViewToggleCtx = {}): HTMLE
         class: 'view-seg-btn' + (current === view ? ' is-active' : ''),
         type: 'button',
         disabled: disabled ? 'disabled' : undefined,
+        dataset: { tab: view },
         'aria-pressed': current === view ? 'true' : 'false',
         onClick,
         title: disabled ? '地图视图开发中' : undefined,
       },
       [icon(iconName, 18), h('span', {}, label)],
     )
-  return h('div', { class: 'view-seg', role: 'group', 'aria-label': '视图切换' }, [
+  const seg = h('div', { class: 'view-seg', role: 'group', 'aria-label': '视图切换' }, [
     item('albums', '相册', 'grid', false, () => navigate(ctx.albumsHref ?? '/albums')),
     item('timeline', '时间线', 'list', false, () => navigate(timelineHref())),
     item('map', '地图', 'pin', true),
   ])
+  return withDockIndicator(seg, 'visitor-view', current, '.view-seg-btn', (indicator, el) => {
+    indicator.style.width = `${el.offsetWidth}px`
+    indicator.style.transform = `translateX(${el.offsetLeft}px)`
+  })
 }
 
 // 文件名兜底标题：去扩展名（含 .PHOTOSPHERE 这类双扩展）、下划线转空格。
