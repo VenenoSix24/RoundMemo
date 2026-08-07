@@ -3,7 +3,7 @@ import { icon } from './icons'
 import { navigate } from '../router'
 import { withDockIndicator } from './dockIndicator'
 
-// 视图切换：相册 / 时间线 / 地图（占位）。桌面端顶栏居中分段控件（滑动指示器），
+// 视图切换：相册 / 时间线 / 地图。桌面端顶栏居中分段控件（滑动指示器），
 // 移动端由 dock 承担。
 
 export type VisitorView = 'albums' | 'timeline' | 'map'
@@ -35,7 +35,7 @@ export function viewToggle(current: VisitorView, ctx: ViewToggleCtx = {}): HTMLE
   const seg = h('div', { class: 'view-seg', role: 'group', 'aria-label': '视图切换' }, [
     item('albums', '相册', 'grid', false, () => navigate(ctx.albumsHref ?? '/albums')),
     item('timeline', '时间线', 'list', false, () => navigate(timelineHref())),
-    item('map', '地图', 'pin', true),
+    item('map', '地图', 'pin', false, () => navigate('/map')),
   ])
   return withDockIndicator(seg, 'visitor-view', current, '.view-seg-btn', (indicator, el) => {
     indicator.style.width = `${el.offsetWidth}px`

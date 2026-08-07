@@ -1,6 +1,8 @@
 // Owner 后台 REST 客户端与类型。鉴权走 rm_admin httpOnly cookie（fetch 自动随行），
 // 401 由调用方统一转登录页。
 
+import type { MapTileConfig } from './client'
+
 export interface AdminAlbum {
   id: number
   title: string
@@ -169,11 +171,16 @@ export const adminApi = {
   deletePhoto: (id: number) => adminReq<void>(`/api/admin/photos/${id}`, { method: 'DELETE' }),
 
   // 站点设置
-  settings: () => adminReq<{ site_title: string; has_favicon: boolean }>('/api/settings'),
+  settings: () => adminReq<{ site_title: string; has_favicon: boolean; map_tile: MapTileConfig }>('/api/settings'),
   putSettings: (siteTitle: string) =>
-    adminReq<{ site_title: string; has_favicon: boolean }>('/api/admin/settings', {
+    adminReq<{ site_title: string; has_favicon: boolean; map_tile: MapTileConfig }>('/api/admin/settings', {
       method: 'PUT',
       body: JSON.stringify({ site_title: siteTitle }),
+    }),
+  putMapTile: (mt: MapTileConfig) =>
+    adminReq<{ site_title: string; has_favicon: boolean; map_tile: MapTileConfig }>('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ map_tile: mt }),
     }),
   uploadFavicon: (file: File) => {
     const fd = new FormData()

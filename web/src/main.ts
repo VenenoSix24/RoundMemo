@@ -7,6 +7,7 @@ import { renderAlbums } from './pages/albums'
 import { renderAlbum } from './pages/album'
 import { renderViewer } from './pages/viewerPage'
 import { renderTimeline } from './pages/timeline'
+import { renderMap } from './pages/map'
 import { renderShare } from './pages/share'
 import { renderAdminLogin } from './pages/admin/login'
 import { renderAdminShell } from './pages/admin/shell'
@@ -22,6 +23,7 @@ route('/albums', () => void renderAlbums())
 route('/a/:albumId', (p) => void renderAlbum(p.albumId))
 route('/p/:photoId', (p) => void renderViewer(p.photoId))
 route('/timeline', () => void renderTimeline())
+route('/map', () => void renderMap())
 route('/s/:token', (p) => void renderShare(p.token))
 
 // Owner 后台
