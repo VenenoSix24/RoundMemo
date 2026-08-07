@@ -43,6 +43,8 @@ func newTestServerWithRoot(t *testing.T) (*Server, *sql.DB, string) {
 
 	cfg := &config.Config{}
 	cfg.Server.SecureCookies = false
+	cfg.Storage.DataDir = mediaRoot
+	cfg.Database.Path = filepath.Join(dir, "test.db")
 	cfg.Security.AdminSessionTTLDays = 7
 	cfg.Security.SessionTTLDays = 30
 	cfg.Security.CodeRatePerHour = 10

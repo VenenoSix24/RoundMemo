@@ -79,8 +79,8 @@ function monthGroup(g: { year: number; label: string; photos: Photo[] }, i: numb
 function timelineItem(p: Photo): HTMLElement {
   const title = photoDisplayTitle(p.title, p.filename)
   const time = p.shot_at ? fmtDay(p.shot_at) : '时间未知'
-  const hasGPS = p.gps_lat != null && p.gps_lng != null
-  const loc = hasGPS ? `${p.gps_lat!.toFixed(4)}, ${p.gps_lng!.toFixed(4)}` : '地点未知'
+  // 自定义地点优先，其次经纬度坐标，均无才显示未知
+  const loc = p.location_name ?? (p.gps_lat != null && p.gps_lng != null ? `${p.gps_lat!.toFixed(4)}, ${p.gps_lng!.toFixed(4)}` : '地点未知')
   return h(
     'article',
     {

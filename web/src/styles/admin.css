@@ -674,6 +674,53 @@
   display: none;
 }
 
+/* —— 备份恢复 —— */
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.backup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-elevated);
+}
+.backup-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.backup-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.backup-file {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  word-break: break-all;
+}
+.backup-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.backup-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 /* —— 照片页头部 —— */
 .admin-head-inline {
   display: flex;

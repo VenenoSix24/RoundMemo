@@ -29,36 +29,38 @@ func (o *optionalField[T]) UnmarshalJSON(data []byte) error {
 }
 
 type photoJSON struct {
-	ID          int64    `json:"id"`
-	AlbumIDs    []int64  `json:"album_ids"`
-	SHA256      string   `json:"sha256"`
-	Width       *int     `json:"width"`
-	Height      *int     `json:"height"`
-	ShotAt      *int64   `json:"shot_at"`
-	GPSLat      *float64 `json:"gps_lat"`
-	GPSLng      *float64 `json:"gps_lng"`
-	DeviceMake  string   `json:"device_make"`
-	DeviceModel string   `json:"device_model"`
-	Title       *string  `json:"title"`
-	Description *string  `json:"description"`
-	Filename    string   `json:"filename"`
+	ID           int64    `json:"id"`
+	AlbumIDs     []int64  `json:"album_ids"`
+	SHA256       string   `json:"sha256"`
+	Width        *int     `json:"width"`
+	Height       *int     `json:"height"`
+	ShotAt       *int64   `json:"shot_at"`
+	GPSLat       *float64 `json:"gps_lat"`
+	GPSLng       *float64 `json:"gps_lng"`
+	DeviceMake   string   `json:"device_make"`
+	DeviceModel  string   `json:"device_model"`
+	Title        *string  `json:"title"`
+	Description  *string  `json:"description"`
+	LocationName *string  `json:"location_name"`
+	Filename     string   `json:"filename"`
 }
 
 func toPhotoJSON(p *store.Photo, albumIDs []int64) photoJSON {
 	return photoJSON{
-		ID:          p.ID,
-		AlbumIDs:    albumIDs,
-		SHA256:      p.SHA256,
-		Width:       p.Width,
-		Height:      p.Height,
-		ShotAt:      p.ShotAt,
-		GPSLat:      p.GPSLat,
-		GPSLng:      p.GPSLng,
-		DeviceMake:  p.DeviceMake,
-		DeviceModel: p.DeviceModel,
-		Title:       p.Title,
-		Description: p.Description,
-		Filename:    p.Filename,
+		ID:           p.ID,
+		AlbumIDs:     albumIDs,
+		SHA256:       p.SHA256,
+		Width:        p.Width,
+		Height:       p.Height,
+		ShotAt:       p.ShotAt,
+		GPSLat:       p.GPSLat,
+		GPSLng:       p.GPSLng,
+		DeviceMake:   p.DeviceMake,
+		DeviceModel:  p.DeviceModel,
+		Title:        p.Title,
+		Description:  p.Description,
+		LocationName: p.LocationName,
+		Filename:     p.Filename,
 	}
 }
 
@@ -83,7 +85,7 @@ func (s *Server) albumIDsMap(photos []store.Photo) (map[int64][]int64, error) {
 	return out, rows.Err()
 }
 
-// handleUpdatePhoto 编辑照片元数据：标题、描述、拍摄时间、GPS 坐标。
+// handleUpdatePhoto 编辑照片元数据：标题、描述、地点名、拍摄时间、GPS 坐标。
 // 字段缺省不改、null 清空、值设置；GPS 两个坐标必须成对给出。
 func (s *Server) handleUpdatePhoto(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
@@ -93,11 +95,12 @@ func (s *Server) handleUpdatePhoto(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Title       *string                `json:"title"`
-		Description *string                `json:"description"`
-		ShotAt      optionalField[int64]   `json:"shot_at"`
-		GPSLat      optionalField[float64] `json:"gps_lat"`
-		GPSLng      optionalField[float64] `json:"gps_lng"`
+		Title        *string                `json:"title"`
+		Description  *string                `json:"description"`
+		LocationName optionalField[string]  `json:"location_name"`
+		ShotAt       optionalField[int64]   `json:"shot_at"`
+		GPSLat       optionalField[float64] `json:"gps_lat"`
+		GPSLng       optionalField[float64] `json:"gps_lng"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "请求格式错误")
@@ -109,6 +112,13 @@ func (s *Server) handleUpdatePhoto(w http.ResponseWriter, r *http.Request) {
 	}
 
 	patch := store.PhotoPatch{Title: req.Title, Description: req.Description}
+	if req.LocationName.present {
+		if req.LocationName.clear {
+			patch.ClearLocationName = true
+		} else {
+			patch.LocationName = &req.LocationName.value
+		}
+	}
 	if req.ShotAt.present {
 		if req.ShotAt.clear {
 			patch.ClearShotAt = true

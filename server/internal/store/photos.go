@@ -8,21 +8,22 @@ import (
 )
 
 type Photo struct {
-	ID          int64
-	StorageKey  string
-	SHA256      string
-	ByteSize    int64
-	Width       *int
-	Height      *int
-	ShotAt      *int64
-	GPSLat      *float64
-	GPSLng      *float64
-	DeviceMake  string
-	DeviceModel string
-	Title       *string
-	Description *string
-	Filename    string
-	CreatedAt   int64
+	ID           int64
+	StorageKey   string
+	SHA256       string
+	ByteSize     int64
+	Width        *int
+	Height       *int
+	ShotAt       *int64
+	GPSLat       *float64
+	GPSLng       *float64
+	DeviceMake   string
+	DeviceModel  string
+	Title        *string
+	Description  *string
+	LocationName *string
+	Filename     string
+	CreatedAt    int64
 }
 
 // CreatePhoto 写库并做 sha256 去重。返回 (照片, 是否本次新建, 错误)；
@@ -51,7 +52,7 @@ func CreatePhoto(db *sql.DB, p *Photo) (*Photo, bool, error) {
 func GetPhoto(db *sql.DB, id int64) (*Photo, error) {
 	row := db.QueryRow(`
 		SELECT id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, location_name, filename, created_at
 		FROM photos WHERE id=?`, id)
 	return scanPhoto(row)
 }
@@ -59,7 +60,7 @@ func GetPhoto(db *sql.DB, id int64) (*Photo, error) {
 func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 	row := db.QueryRow(`
 		SELECT id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, location_name, filename, created_at
 		FROM photos WHERE sha256=?`, sha)
 	return scanPhoto(row)
 }
@@ -68,7 +69,7 @@ func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 func ListAllPhotos(db *sql.DB) ([]Photo, error) {
 	rows, err := db.Query(`
 		SELECT id, storage_key, sha256, byte_size, width, height,
-			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, filename, created_at
+			shot_at, gps_lat, gps_lng, device_make, device_model, title, description, location_name, filename, created_at
 		FROM photos ORDER BY COALESCE(shot_at, created_at), id`)
 	if err != nil {
 		return nil, err
@@ -118,14 +119,16 @@ func DeletePhoto(db *sql.DB, id int64) (*Photo, error) {
 
 // PhotoPatch 照片元数据补丁。nil 字段表示不变；ClearXxx 表示显式清空（写 NULL）。
 type PhotoPatch struct {
-	Title       *string
-	Description *string
-	ShotAt      *int64
-	GPSLat      *float64
-	GPSLng      *float64
-	ClearShotAt bool
-	ClearGPSLat bool
-	ClearGPSLng bool
+	Title             *string
+	Description       *string
+	LocationName      *string
+	ShotAt            *int64
+	GPSLat            *float64
+	GPSLng            *float64
+	ClearShotAt       bool
+	ClearGPSLat       bool
+	ClearGPSLng       bool
+	ClearLocationName bool
 }
 
 // UpdatePhoto 应用元数据补丁，仅更新发生了变化的字段，避免全行重写。
@@ -139,6 +142,14 @@ func UpdatePhoto(db *sql.DB, id int64, p PhotoPatch) error {
 	if p.Description != nil {
 		sets = append(sets, "description=?")
 		args = append(args, *p.Description)
+	}
+	if p.LocationName != nil || p.ClearLocationName {
+		sets = append(sets, "location_name=?")
+		var v any
+		if p.LocationName != nil {
+			v = *p.LocationName
+		}
+		args = append(args, v)
 	}
 	if p.ShotAt != nil || p.ClearShotAt {
 		sets = append(sets, "shot_at=?")
@@ -193,10 +204,10 @@ func scanPhoto(row scanner) (*Photo, error) {
 func scanPhotoInto(scan func(dest ...any) error, p *Photo) error {
 	var width, height, shotAt sql.NullInt64
 	var gpsLat, gpsLng sql.NullFloat64
-	var title, desc, filename sql.NullString
+	var title, desc, locationName, filename sql.NullString
 	if err := scan(&p.ID, &p.StorageKey, &p.SHA256, &p.ByteSize,
 		&width, &height, &shotAt, &gpsLat, &gpsLng,
-		&p.DeviceMake, &p.DeviceModel, &title, &desc, &filename, &p.CreatedAt); err != nil {
+		&p.DeviceMake, &p.DeviceModel, &title, &desc, &locationName, &filename, &p.CreatedAt); err != nil {
 		return err
 	}
 	p.Width = nullIntPtr64(width)
@@ -206,6 +217,7 @@ func scanPhotoInto(scan func(dest ...any) error, p *Photo) error {
 	p.GPSLng = nullFloatPtr(gpsLng)
 	p.Title = nullStringPtr(title)
 	p.Description = nullStringPtr(desc)
+	p.LocationName = nullStringPtr(locationName)
 	p.Filename = filename.String
 	return nil
 }

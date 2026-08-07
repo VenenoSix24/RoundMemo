@@ -58,6 +58,7 @@ export interface AdminPhoto {
   device_model: string
   title: string | null
   description: string | null
+  location_name: string | null
   filename: string
 }
 
@@ -66,6 +67,18 @@ export interface ImportResult {
   status: 'added' | 'duplicate' | 'error'
   photo_id?: number
   error?: string
+}
+
+export interface AdminBackup {
+  name: string
+  kind: 'db' | 'full'
+  size: number
+  created_at: number
+  version: string
+  photos: number
+  albums: number
+  groups: number
+  grants: number
 }
 
 async function adminReq<T>(path: string, init?: RequestInit): Promise<T> {
@@ -206,6 +219,35 @@ export const adminApi = {
       body: JSON.stringify({ path }),
     }),
   uploadPhotos,
+
+  // 备份与恢复
+  createBackup: (kind: 'db' | 'full') =>
+    adminReq<AdminBackup>('/api/admin/backups', { method: 'POST', body: JSON.stringify({ kind }) }),
+  backups: () => adminReq<{ backups: AdminBackup[] }>('/api/admin/backups'),
+  deleteBackup: (name: string) => adminReq<void>(`/api/admin/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  downloadBackup: async (name: string) => {
+    const res = await fetch(`/api/admin/backups/${encodeURIComponent(name)}`, { credentials: 'same-origin' })
+    if (!res.ok) {
+      let msg = `下载失败 (${res.status})`
+      try {
+        const data = await res.json()
+        if (data.error) msg = data.error
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg)
+    }
+    return res.blob()
+  },
+  restoreBackup: (file: File, confirm: string) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('confirm', confirm)
+    return adminReq<{ restored: boolean; kind: string; prev_dir: string }>('/api/admin/backups/restore', {
+      method: 'POST',
+      body: fd,
+    })
+  },
 }
 
 // 授权分享链接：当前域即对外地址（生产由 Caddy 反代到域名）。

@@ -1,5 +1,5 @@
 import { api, imgUrl, type Album } from '../api/client'
-import { state } from '../state'
+import { state, restoreGroup } from '../state'
 import { h, renderPage } from '../components/dom'
 import { groupBrand, homeExitButtons, visitorDock } from '../components/visitorNav'
 import { wireReveal } from '../components/reveal'
@@ -10,8 +10,19 @@ import { navigate, setTeardown } from '../router'
 // + 移动端底部 dock + 暖纸卡片（滚动淡入）。
 export async function renderAlbums(): Promise<void> {
   if (state.activeGroupId === 0) {
-    navigate('/')
-    return
+    // 浏览器刷新后内存 state 是空的，但会话 cookie 还在：先尝试用会话恢复分组，
+    // 成功（用户已解锁）则继续渲染，失败（未解锁/会话过期）才回入口页。
+    try {
+      const info = await api.session()
+      restoreGroup(info.groups)
+    } catch {
+      navigate('/')
+      return
+    }
+    if (state.activeGroupId === 0) {
+      navigate('/')
+      return
+    }
   }
   let albums: Album[] = []
   try {

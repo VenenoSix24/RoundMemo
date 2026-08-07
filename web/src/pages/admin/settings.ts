@@ -1,9 +1,10 @@
-import { adminApi } from '../../api/admin'
+import { adminApi, type AdminBackup } from '../../api/admin'
 import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
-import { toast } from '../../components/modal'
+import { confirmDialog, openModal, toast } from '../../components/modal'
 import { renderImportSection } from './import'
 import { renderSessionsSection } from './sessions'
+import { fmtDateTime } from './photoEditModal'
 
 // 设置 tab：账号 / 站点（标题·图标）/ 导入 / 会话 / 备份恢复（占位）。
 export async function renderAdminSettings(main: HTMLElement): Promise<void> {
@@ -126,13 +127,201 @@ function siteSection(siteTitle: string, hasFavicon: boolean): HTMLElement {
 }
 
 function backupSection(): HTMLElement {
+  const body = h('div', { class: 'settings-block-group' })
+  void renderBackupSection(body)
   return h('section', { class: 'glass admin-card' }, [
     h('h3', { class: 'admin-card-title' }, '备份与恢复'),
-    h('p', { class: 'admin-section-desc text-muted' }, '后续支持将照片、相册、分组与设置导出为档案包，迁移到另一台服务器。'),
-    h('div', { class: 'settings-fav-row' }, [
-      h('button', { class: 'btn btn-ghost', type: 'button', disabled: true }, [icon('download', 16), '导出备份']),
-      h('button', { class: 'btn btn-ghost', type: 'button', disabled: true }, [icon('upload', 16), '恢复备份']),
-      h('span', { class: 'text-muted' }, '开发中（Future）'),
-    ]),
+    h('p', { class: 'admin-section-desc text-muted' }, '把站点数据导出为档案包，可迁移到另一台服务器。'),
+    body,
   ])
+}
+
+// 备份区块：创建（仅数据 / 数据+原图）、列表、下载、删除、恢复。
+async function renderBackupSection(body: HTMLElement): Promise<void> {
+  const listEl = h('div', { class: 'backup-list' })
+  const errEl = h('p', { class: 'admin-form-err', role: 'alert' }, '')
+  const reload = async () => {
+    try {
+      const r = await adminApi.backups()
+      renderBackupList(listEl, r.backups, reload)
+    } catch (e) {
+      errEl.textContent = e instanceof Error ? e.message : '加载备份失败'
+    }
+  }
+  void reload()
+
+  const dbBtn = h('button', {
+    class: 'btn btn-ghost',
+    type: 'button',
+    onClick: async () => {
+      dbBtn.disabled = true
+      errEl.textContent = ''
+      try {
+        await adminApi.createBackup('db')
+        toast('已创建数据备份')
+        void reload()
+      } catch (e) {
+        errEl.textContent = e instanceof Error ? e.message : '创建失败'
+      } finally {
+        dbBtn.disabled = false
+      }
+    },
+  }, [icon('download', 16), '仅数据'])
+
+  const fullBtn = h('button', {
+    class: 'btn btn-ghost',
+    type: 'button',
+    onClick: async () => {
+      const ok = await confirmDialog(
+        '创建完整备份？',
+        '完整备份包含数据库 + 全部照片原图，文件较大。照片原图通常您自己也有，一般只需备份数据。确定继续？',
+      )
+      if (!ok) return
+      fullBtn.disabled = true
+      errEl.textContent = ''
+      try {
+        await adminApi.createBackup('full')
+        toast('已创建完整备份')
+        void reload()
+      } catch (e) {
+        errEl.textContent = e instanceof Error ? e.message : '创建失败'
+      } finally {
+        fullBtn.disabled = false
+      }
+    },
+  }, [icon('download', 16), '数据+原图'])
+
+  const fileInput = h('input', {
+    type: 'file', class: 'import-file', accept: '.rmbackup,application/octet-stream', 'aria-hidden': 'true',
+  })
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files?.[0]
+    if (!f) return
+    fileInput.value = ''
+    void startRestore(f, reload)
+  })
+  const restoreBtn = h('button', {
+    class: 'btn btn-danger',
+    type: 'button',
+    onClick: () => fileInput.click(),
+  }, [icon('upload', 16), '恢复备份'])
+
+  body.replaceChildren(
+    h('div', { class: 'settings-block' }, [
+      h('h4', { class: 'settings-block-title' }, '创建备份'),
+      h('div', { class: 'settings-fav-row' }, [dbBtn, fullBtn]),
+      errEl,
+    ]),
+    h('div', { class: 'settings-block' }, [
+      h('h4', { class: 'settings-block-title' }, '已有备份'),
+      listEl,
+    ]),
+    h('div', { class: 'settings-block' }, [
+      h('h4', { class: 'settings-block-title' }, '恢复备份'),
+      h('p', { class: 'admin-form-hint text-muted' }, '恢复会用档案包覆盖当前数据，操作不可撤销。'),
+      h('div', { class: 'settings-fav-row' }, [restoreBtn, fileInput]),
+    ]),
+  )
+}
+
+function renderBackupList(el: HTMLElement, backups: AdminBackup[], reload: () => Promise<void>): void {
+  if (!backups.length) {
+    el.replaceChildren(h('p', { class: 'group-empty text-muted' }, '还没有备份'))
+    return
+  }
+  const rows = backups.map((b) => {
+    const kind = b.kind === 'full' ? h('span', { class: 'grant-status is-active' }, '完整') : h('span', { class: 'grant-status' }, '数据')
+    const dl = h('button', {
+      class: 'icon-btn',
+      type: 'button',
+      'aria-label': '下载备份',
+      title: '下载备份',
+      onClick: async () => {
+        try {
+          const blob = await adminApi.downloadBackup(b.name)
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = b.name
+          a.click()
+          URL.revokeObjectURL(url)
+        } catch (e) {
+          toast(e instanceof Error ? e.message : '下载失败')
+        }
+      },
+    }, icon('download', 16))
+    const del = h('button', {
+      class: 'icon-btn',
+      type: 'button',
+      'aria-label': '删除备份',
+      title: '删除备份',
+      onClick: async () => {
+        const ok = await confirmDialog('删除备份？', `确定删除 ${b.name}？此操作不可恢复。`, true)
+        if (!ok) return
+        try {
+          await adminApi.deleteBackup(b.name)
+          toast('备份已删除')
+          void reload()
+        } catch (e) {
+          toast(e instanceof Error ? e.message : '删除失败')
+        }
+      },
+    }, icon('trash', 16))
+
+    return h('div', { class: 'backup-row' }, [
+      h('div', { class: 'backup-main' }, [
+        h('div', { class: 'backup-name' }, [kind, h('span', { class: 'backup-file' }, b.name)]),
+        h('div', { class: 'backup-meta' }, [
+          h('span', {}, fmtDateTime(b.created_at)),
+          h('span', {}, fmtSize(b.size)),
+          h('span', {}, `${b.photos} 张照片 · ${b.albums} 相册 · ${b.groups} 分组 · ${b.grants} 授权`),
+        ]),
+      ]),
+      h('div', { class: 'backup-actions' }, [dl, del]),
+    ])
+  })
+  el.replaceChildren(...rows)
+}
+
+// startRestore 恢复流程：选文件 → 强确认（输入 RESET）→ 调接口。
+async function startRestore(file: File, reload: () => Promise<void>): Promise<void> {
+  const input = h('input', { class: 'admin-input', placeholder: '输入 RESET 确认恢复', 'aria-label': '输入 RESET 确认恢复' })
+  const msg = h('p', { class: 'modal-message' }, `将用 ${file.name} 覆盖当前全部数据。输入 RESET 确认。`)
+  const err = h('p', { class: 'admin-form-err', role: 'alert' }, '')
+  let closeModal: () => void = () => {}
+  const { close } = openModal(h('div', { class: 'modal-body' }, [
+    h('h3', { class: 'modal-title' }, '恢复备份'),
+    msg,
+    input,
+    err,
+    h('div', { class: 'modal-actions' }, [
+      h('button', { class: 'btn btn-ghost', type: 'button', onClick: () => closeModal() }, '取消'),
+      h('button', {
+        class: 'btn btn-danger',
+        type: 'button',
+        onClick: async () => {
+          if (input.value.trim() !== 'RESET') {
+            err.textContent = '确认词不正确'
+            return
+          }
+          try {
+            const r = await adminApi.restoreBackup(file, 'RESET')
+            closeModal()
+            toast(`恢复完成（${r.kind === 'full' ? '完整' : '数据'}）`)
+            void reload()
+          } catch (e) {
+            err.textContent = e instanceof Error ? e.message : '恢复失败'
+          }
+        },
+      }, '确认恢复'),
+    ]),
+  ]))
+  closeModal = close
+}
+
+function fmtSize(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`
 }
