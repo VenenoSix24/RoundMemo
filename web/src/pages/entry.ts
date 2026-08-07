@@ -337,16 +337,40 @@ function wireScroll(root: HTMLElement): (() => void) | null {
   if (reducedMotion()) return null // 静态版式，滚动驱动动画整体停用
 
   let rafId = 0
+
+  // 键盘弹出检测：视口可用高度被键盘压缩即判定。不能用 innerHeight 作分母——
+  // Android 键盘弹出时 innerHeight 与 visualViewport.height 同步缩小（比值不变），
+  // 唯有相对「无键盘时的初始高度」的缩水才可靠；iOS 则只有 visualViewport 缩小。
+  const vv = window.visualViewport
+  const baseViewportH = vv ? vv.height : window.innerHeight
+  let kbOpen = false
+  const detectKb = () => {
+    const h = vv ? vv.height : window.innerHeight
+    kbOpen = h < baseViewportH * 0.85
+    // 键盘弹出期间 hero 强制可见：即使浏览器为露出输入框自动滚动（scrollY 变大），
+    // 也不让口令卡随滚动公式淡出。键盘收起后恢复常态。
+    if (kbOpen) {
+      hero.style.transform = 'none'
+      hero.style.opacity = '1'
+    }
+  }
+  detectKb()
+  window.addEventListener('resize', detectKb)
+  vv?.addEventListener('resize', detectKb)
+  vv?.addEventListener('scroll', detectKb)
+
   const onScroll = () => {
     const y = scrollY
     const total = document.documentElement.scrollHeight - innerHeight
     const p = total > 0 ? y / total : 0
     progress.style.transform = `scaleX(${p})`
 
-    // hero 上浮淡出（1:1）
-    const hp = Math.min(1, y / (innerHeight * 0.85))
-    hero.style.transform = `translateY(${y * 0.28}px)`
-    hero.style.opacity = String(Math.max(0, 1 - hp))
+    // hero 上浮淡出（1:1）：键盘弹出期间冻结，避免输口令时卡片淡出
+    if (!kbOpen) {
+      const hp = Math.min(1, y / (innerHeight * 0.85))
+      hero.style.transform = `translateY(${y * 0.28}px)`
+      hero.style.opacity = String(Math.max(0, 1 - hp))
+    }
 
     // 第一章 · 全景平移：从进视口到出视口全程持续，不停顿
     const c1p = clamp((y - c1.offsetTop + innerHeight) / (innerHeight * 2))
@@ -379,6 +403,9 @@ function wireScroll(root: HTMLElement): (() => void) | null {
   onScroll()
   return () => {
     window.removeEventListener('scroll', onScrollRaf)
+    window.removeEventListener('resize', detectKb)
+    vv?.removeEventListener('resize', detectKb)
+    vv?.removeEventListener('scroll', detectKb)
     if (rafId) cancelAnimationFrame(rafId)
   }
 }
