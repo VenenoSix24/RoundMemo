@@ -14,8 +14,7 @@ var imageExts = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".webp": true,
 }
 
-// handleImportLocal 扫描服务器本地目录批量导入照片池（开发文档 §8.1 便捷入口，
-// 适合一次性放入几十张）。目录路径由 Owner 提供，属受信操作。
+// handleImportLocal 扫描服务器本地目录批量导入照片池（开发文档 §8.1 便捷入口，适合一次性放入几十张）。目录路径由 Owner 提供，属受信操作。
 func (s *Server) handleImportLocal(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Path string `json:"path"`
@@ -66,7 +65,7 @@ func scanImageFiles(dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	// 固定顺序导入，结果可复现
+	// 固定顺序导入
 	sort.Strings(files)
 	return files, nil
 }

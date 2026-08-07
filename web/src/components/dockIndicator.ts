@@ -32,7 +32,7 @@ export function withDockIndicator(
     if (prevEl && prevEl !== active) {
       indicator.style.transition = 'none'
       apply(prevEl)
-      void indicator.offsetWidth // 强制回流：先让"无过渡"定位生效
+      void indicator.offsetWidth
       indicator.style.transition = ''
     }
     apply(active)

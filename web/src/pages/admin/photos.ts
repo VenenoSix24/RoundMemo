@@ -5,7 +5,7 @@ import { icon } from '../../components/icons'
 import { confirmDialog, toast } from '../../components/modal'
 import { baseName, fmtDateTime, openPhotoEditModal } from './photoEditModal'
 
-// 照片池（照片 tab）：跨相册全量照片，可上传进池、编辑信息、删除（真删）。
+// 照片池：跨相册全量照片，可上传进池、编辑信息、删除。
 export async function renderAdminPhotos(main: HTMLElement): Promise<void> {
   const [photosRes, albumsRes] = await Promise.all([adminApi.allPhotos(), adminApi.albums()])
   let photos = photosRes.photos

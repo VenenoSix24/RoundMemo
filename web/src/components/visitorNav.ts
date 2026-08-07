@@ -41,7 +41,7 @@ export function visitorDock(current: VisitorView, ctx: VisitorNavCtx = {}): HTML
   })
 }
 
-// 时间线带来源参数：让返回按钮/「相册」tab 能回到来源页（如某个相册的照片页）。
+// 时间线带来源参数：让返回按钮/「相册」tab 能回到来源页。
 function timelineHref(): string {
   return `/timeline?from=${encodeURIComponent(location.pathname)}`
 }

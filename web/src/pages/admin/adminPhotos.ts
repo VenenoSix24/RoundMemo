@@ -7,7 +7,7 @@ import { navigate } from '../../router'
 import { baseName, fmtDateTime, openPhotoEditModal } from './photoEditModal'
 
 // 相册照片管理（后台子页）：照片池 → 相册的挂接视图。
-// 可「从照片池添加」组成相册、编辑信息、设封面、从相册移除（仅解引用，不删池）。
+// 可「从照片池添加」组成相册、编辑信息、设封面、从相册移除。
 export async function renderAdminAlbumPhotos(albumIdStr: string, main: HTMLElement): Promise<void> {
   const albumId = Number(albumIdStr)
   const [albumsRes, photosRes] = await Promise.all([adminApi.albums(), adminApi.albumPhotos(albumId)])

@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-// SignImageURL 生成绑定会话的图片分发签名（docs/decisions/0002 方案 A）：
+// SignImageURL 生成绑定会话的图片分发签名：
 // sig = HMAC(secret, sid|kind|sha|exp)。签发方必须自己保留 sid、exp，
 // URL 形如 /img/<kind>/<sha>?sid=...&exp=...&sig=...
 func SignImageURL(secret []byte, sid, kind, sha string, exp int64) string {

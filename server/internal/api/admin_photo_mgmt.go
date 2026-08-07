@@ -13,7 +13,7 @@ import (
 	"roundmemo/internal/store"
 )
 
-// handleListAllPhotos 后台「照片」tab：照片池全量列表（含所属相册，供按相册筛）。
+// handleListAllPhotos 后台「照片」tab：照片池全量列表。
 func (s *Server) handleListAllPhotos(w http.ResponseWriter, _ *http.Request) {
 	photos, err := store.ListAllPhotos(s.db)
 	if err != nil {
@@ -48,7 +48,7 @@ func (s *Server) handleDeletePhoto(w http.ResponseWriter, r *http.Request) {
 		s.internalError(w, err)
 		return
 	}
-	// 清理存储文件（尽力而为，漏删最多留孤儿文件，不影响数据一致性）
+	// 清理存储文件
 	ctx := context.Background()
 	_ = s.storage.Delete(ctx, photo.StorageKey)
 	_ = s.storage.Delete(ctx, storage.ThumbKey(photo.SHA256, media.ThumbPreview))

@@ -20,7 +20,7 @@ import (
 	"roundmemo/internal/store"
 )
 
-// maxUploadBytes 单次上传上限。覆盖大尺寸全景（如 8K equirectangular），
+// maxUploadBytes 单次上传上限。
 // 靠 MaxBytesReader 流式限制，不整读进内存。
 const maxUploadBytes = 512 << 20
 
@@ -31,7 +31,7 @@ type importResult struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// handleUploadPhotos 上传到照片池（相册由 album_photos 手动挑选组成）。
+// handleUploadPhotos 上传到照片池。
 func (s *Server) handleUploadPhotos(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
 	reader, err := r.MultipartReader()
@@ -62,7 +62,7 @@ func (s *Server) handleUploadPhotos(w http.ResponseWriter, r *http.Request) {
 }
 
 // importStream 处理单张图片：流式落临时文件 → sha256 → EXIF → 缩略图 →
-// 去重 → 落存储 → 写池。逐文件顺序执行，控制 1H1G 的瞬时内存峰值。
+// 去重 → 落存储 → 写池。逐文件顺序执行，控制瞬时内存峰值。
 func (s *Server) importStream(filename string, r io.Reader) importResult {
 	fail := func(err error) importResult {
 		return importResult{Filename: filename, Status: "error", Error: err.Error()}
@@ -128,7 +128,7 @@ func (s *Server) importStream(filename string, r io.Reader) importResult {
 		}
 	}
 
-	// 先落存储再写库：写库失败最多留孤儿文件（无引用），
+	// 先落存储再写库：写库失败最多留孤儿文件，
 	// 反过来则会产生指向缺失文件的 DB 行，影响更坏。
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		return fail(err)

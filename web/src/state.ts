@@ -1,6 +1,6 @@
 import type { Group } from './api/client'
 
-// 会话级共享状态：解锁后可访问的分组与当前选中的分组。
+// 解锁后可访问的分组与当前选中的分组。
 // 分组切换器用 activeGroupId 驱动相册列表刷新；选择持久化到 localStorage。
 export const state = {
   groups: [] as Group[],

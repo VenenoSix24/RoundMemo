@@ -21,16 +21,6 @@ import (
 
 // 备份恢复：把站点数据导出为 .rmbackup 档案包（zip），可迁移到另一台服务器。
 // 两种范围：db=仅数据库快照；full=数据库 + 照片原图/缩略图 + favicon + 签名密钥。
-//
-// 格式约定（不引本地设计文档，决策用注释承载）：
-//   - manifest.json 首位，含 app/version/kind/created_at/counts，供列表与恢复校验；
-//   - roundmemo.db 用 VACUUM INTO 生成一致性快照（WAL 下 copy 文件可能读半写状态，
-//     快照则始终是事务边界后的完整库，且不含 -wal/-shm）；
-//   - full 档追加 photos/、thumbs/、settings/、secret.key，路径与 DataDir 相对一致。
-//
-// 恢复是破坏性操作：先解包到临时目录校验 manifest，通过后全局互斥锁内
-// 关闭旧 DB、把当前数据挪到 .restore-prev-<ts> 兜底、移入新文件、重开 DB 并迁移。
-// 兜底目录保留待用户确认无误后自行删除（恢复窗口内并发请求会短暂 500，属预期）。
 
 type backupManifest struct {
 	App       string             `json:"app"`
@@ -391,7 +381,7 @@ func (s *Server) applyRestore(staging, kind string) (string, error) {
 	if dbPath == "" {
 		dbPath = filepath.Join(dataDir, "roundmemo.db")
 	}
-	// 关闭旧连接，释放 db/wal/shm 文件句柄（WAL 残留文件一并移走）
+	// 关闭旧连接，释放 db/wal/shm 文件句柄
 	if err := s.db.Close(); err != nil {
 		return prevDir, fmt.Errorf("关闭旧数据库: %w", err)
 	}

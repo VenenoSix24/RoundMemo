@@ -7,7 +7,7 @@ import { renderImportSection } from './import'
 import { renderSessionsSection } from './sessions'
 import { fmtDateTime } from './photoEditModal'
 
-// 设置 tab：账号 / 站点（标题·图标）/ 地图瓦片源 / 导入 / 会话 / 备份恢复（占位）。
+// 设置 tab：账号 / 站点 / 地图瓦片源 / 导入 / 会话 / 备份恢复。
 export async function renderAdminSettings(main: HTMLElement): Promise<void> {
   const me = await adminApi.whoami()
   const settings = await adminApi.settings()
@@ -128,7 +128,7 @@ function siteSection(siteTitle: string, hasFavicon: boolean): HTMLElement {
   ])
 }
 
-// 地图瓦片源预设：切换只填 URL 与子域（地图来源）；「照片 GPS 坐标系」独立于地图来源。
+// 地图瓦片源预设：切换只填 URL 与子域；「照片 GPS 坐标系」独立于地图来源。
 const MAP_PRESETS: Record<string, { url: string; subdomains: string }> = {
   amap8: {
     url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
@@ -208,7 +208,7 @@ function backupSection(): HTMLElement {
   ])
 }
 
-// 备份区块：创建（仅数据 / 数据+原图）、列表、下载、删除、恢复。
+// 备份区块：创建、列表、下载、删除、恢复。
 async function renderBackupSection(body: HTMLElement): Promise<void> {
   const listEl = h('div', { class: 'backup-list' })
   const errEl = h('p', { class: 'admin-form-err', role: 'alert' }, '')

@@ -38,7 +38,7 @@ func GetOwnerByUsername(db *sql.DB, username string) (*Owner, error) {
 	return &o, nil
 }
 
-// GetOwner 返回唯一 Owner（单用户产品）。whoami 需要用户名展示顶栏身份。
+// GetOwner 返回唯一 Owner。whoami 需要用户名展示顶栏身份。
 func GetOwner(db *sql.DB) (*Owner, error) {
 	row := db.QueryRow(`SELECT id, username, password_hash, created_at FROM owner ORDER BY id LIMIT 1`)
 	var o Owner

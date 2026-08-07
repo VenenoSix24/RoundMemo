@@ -19,7 +19,7 @@ data_dir = "./data"
 path = ""
 
 [security]
-code_rate_per_hour = 10      # 口令尝试限流：每 IP 每小时（开发文档 §6.4）
+code_rate_per_hour = 10      # 口令尝试限流：每 IP 每小时
 session_ttl_days = 30        # 访客会话默认有效期（天）
 admin_session_ttl_days = 7   # Owner 管理会话有效期（天）
 img_sig_ttl_seconds = 300    # 图片分发签名有效期（秒）

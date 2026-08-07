@@ -3,7 +3,7 @@ import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
 import { confirmDialog, toast } from '../../components/modal'
 
-// 会话区块（设置页内嵌）：按授权列出在线设备，可逐个下线。
+// 会话区块：按授权列出在线设备，可逐个下线。
 export async function renderSessionsSection(container: HTMLElement): Promise<void> {
   const grants = (await adminApi.grants()).grants
   const groupName = (gid: number): string => `#${gid}`

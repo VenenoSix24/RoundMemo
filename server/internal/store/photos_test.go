@@ -56,7 +56,7 @@ func TestAlbumCoverSHAFromPool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 未设封面：走 album_photos 兜底，返回相册里最早一张（回归：曾引用已删的 photos.album_id 导致恒报错）
+	// 未设封面：走 album_photos 兜底，返回相册里最早一张
 	sha, err := AlbumCoverSHA(db, albumID)
 	if err != nil {
 		t.Fatalf("AlbumCoverSHA: %v", err)

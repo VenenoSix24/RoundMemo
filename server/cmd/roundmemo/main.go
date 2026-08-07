@@ -96,7 +96,7 @@ func main() {
 		}
 	}()
 
-	// 大上传与图片流式分发不能套全局 Read/WriteTimeout（会切断慢请求），
+	// 大上传与图片流式分发不能套全局 Read/WriteTimeout，会切断慢请求
 	// 常规请求的限时由路由层的 chi Timeout 中间件承担。
 	srv := &http.Server{
 		Addr:              cfg.Server.Listen,
@@ -124,7 +124,7 @@ func main() {
 }
 
 // runOwnerCmd 支持 owner create <username>：交互式设密，建人或改密二合一。
-// 密码走终端隐藏输入，不落命令行参数（避免 shell history 泄露）。
+// 密码走终端隐藏输入，不落命令行参数。
 func runOwnerCmd(db *sql.DB, args []string) error {
 	if len(args) < 2 || args[0] != "create" {
 		return fmt.Errorf("用法: roundmemo owner create <username>")
@@ -172,7 +172,7 @@ func promptPassword(prompt string) (string, error) {
 		}
 		return string(b), nil
 	}
-	// 非终端（管道/CI）时退化为读一行，便于脚本化。
+	// 非终端时退化为读一行，便于脚本化。
 	if stdinScanner == nil {
 		stdinScanner = bufio.NewScanner(os.Stdin)
 	}
@@ -186,7 +186,7 @@ func printUsage() {
 	fmt.Println(`用法: roundmemo [子命令] -config <path>
 
 子命令:
-  owner create <username>   创建或重置 Owner 账号（交互式输密）
+  owner create <username>   创建或重置 Owner 账号
   help                     显示本帮助
 
 无子命令时以服务模式运行。`)

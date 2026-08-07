@@ -38,7 +38,7 @@ route('/admin/settings', () => void renderAdminShell('settings', renderAdminSett
 
 startRouter()
 
-// 应用站点级设置：浏览器标签页标题与图标（后台「设置」页配置）
+// 浏览器标签页标题与图标
 void (async () => {
   try {
     const res = await fetch('/api/settings', { credentials: 'same-origin' })

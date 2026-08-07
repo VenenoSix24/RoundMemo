@@ -51,7 +51,7 @@ export function startRouter(): void {
 }
 
 function dispatch(): void {
-  // 先清理上一页的监听，避免跨页泄漏（如入口页的滚动 scrubber）
+  // 先清理上一页的监听，避免跨页泄漏
   if (teardown) {
     teardown()
     teardown = null

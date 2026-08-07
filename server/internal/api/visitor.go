@@ -10,7 +10,7 @@ import (
 	"roundmemo/internal/store"
 )
 
-// handleVisitorAlbums 返回会话可见相册。?group_id=N 时仅返回该分组（会话须覆盖）。
+// handleVisitorAlbums 返回会话可见相册。?group_id=N 时仅返回该分组。
 // 无会话或不覆盖时返回空列表而非 404，避免泄露内容存在性。
 func (s *Server) handleVisitorAlbums(w http.ResponseWriter, r *http.Request) {
 	sess := s.visitorSession(r)

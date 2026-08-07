@@ -17,7 +17,7 @@ type Metadata struct {
 }
 
 // ParseEXIF 解析图片元数据。缺 EXIF 或解析失败返回 nil 而非错误，
-// 因为无元数据的照片不应阻断导入（开发文档 §9 用 created_at 兜底）。
+// 因为无元数据的照片不应阻断导入。
 func ParseEXIF(r io.Reader) *Metadata {
 	x, err := exif.Decode(r)
 	if err != nil {
