@@ -1,4 +1,4 @@
-import { api, type Album, type Photo } from '../api/client'
+import { api, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
 import { photoDisplayTitle } from '../components/viewToggle'
@@ -6,19 +6,17 @@ import { PanoramaViewer } from '../viewer/viewer'
 import { navigate } from '../router'
 import { fmtDate } from './album'
 
-// 全景沉浸页：照片占满视口。左上常驻「返回相册 + 照片信息」，底部控制胶囊
+// 全景沉浸页：照片占满视口。左上常驻「返回 + 照片信息」，底部控制胶囊
 // （上一张/计数/下一张 + 陀螺仪/重置）1.5s 无操作淡出。
 export async function renderViewer(photoIdStr: string): Promise<void> {
   const photoId = Number(photoIdStr)
   let albumId = Number(new URLSearchParams(location.search).get('album')) || 0
   let photo: Photo
-  let album: Album
   let photos: Photo[]
   try {
     photo = await api.photo(photoId)
     if (!albumId) albumId = photo.album_ids[0] ?? 0
     const r = await api.album(albumId)
-    album = r.album
     photos = r.photos
   } catch {
     navigate('/albums')
@@ -29,11 +27,8 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   const root = h('div', { class: 'viewer-page' })
   const canvas = h('canvas', { class: 'viewer-canvas' })
-  const loading = h('div', { class: 'viewer-loading glass-compact', role: 'status', 'aria-live': 'polite' }, [
-    h('span', { class: 'spinner', 'aria-hidden': 'true' }),
-    h('span', {}, '全景加载中'),
-  ])
-  // 首张加载的整屏入场动画：等纹理加载完再淡出，避免黑屏 + UI 先弹出的割裂感
+  // 品牌入场/切换动画：首张加载与照片切换共用。深色全屏遮罩覆盖黑屏过渡，
+  // 等纹理加载完再淡出，避免黑屏 + UI 先弹出的割裂感。
   const enter = h('div', { class: 'viewer-enter', role: 'status', 'aria-live': 'polite' }, [
     h('div', { class: 'viewer-enter-brand' }, [
       h('span', { class: 'font-accent viewer-enter-name' }, '圆忆'),
@@ -41,7 +36,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     ]),
     h('span', { class: 'spinner viewer-enter-spinner', 'aria-hidden': 'true' }),
   ])
-  root.append(canvas, loading, enter)
+  root.append(canvas, enter)
 
   // —— 底部控制胶囊 ——
   const counter = h('span', { class: 'viewer-counter' }, '')
@@ -65,8 +60,12 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   const backBtn = h('button', {
     class: 'btn btn-ghost viewer-back',
     type: 'button',
-    onClick: () => navigate(`/a/${album.id}`),
-  }, [icon('arrow-left', 16), '相册'])
+    // 返回上一个页面（从地图/时间线/相册进入都回对应来源）；深链直进无历史时兜底回所属相册
+    onClick: () => {
+      if (history.length > 1) history.back()
+      else navigate(albumId ? `/a/${albumId}` : '/albums')
+    },
+  }, [icon('arrow-left', 16), '返回'])
   const top = h('div', { class: 'viewer-top' }, [backBtn, info])
   root.append(top)
 
@@ -75,14 +74,30 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   // 先挂载再创建查看器：容器已有真实尺寸，画布初始宽高才正确。
   const viewer = new PanoramaViewer(root, canvas)
 
-  let loadTimer = 0
+  // 品牌入场/切换动画：显示「圆忆 · 正在进入这个时刻」深色遮罩（首张与切图共用）
+  let enterResetTimer = 0
+  function showEnter(): void {
+    window.clearTimeout(enterResetTimer)
+    enter.classList.remove('is-done')
+    enter.classList.add('is-shown')
+  }
+  function hideEnter(): void {
+    enter.classList.add('is-done')
+    window.clearTimeout(enterResetTimer)
+    enterResetTimer = window.setTimeout(() => {
+      enter.classList.remove('is-shown')
+      enter.classList.remove('is-done')
+    }, 550) // 等 is-done 的 500ms 淡出完成再复位，供下次复用
+  }
+
+  let hideTimer = 0
   function beginLoad(sha: string): Promise<void> {
-    // 已缓存则无加载过程；未缓存延迟 150ms 再亮提示，快载入不闪烁
-    if (viewer.isLoaded(sha)) return viewer.load(sha)
-    loadTimer = window.setTimeout(() => loading.classList.add('is-shown'), 150)
+    // 每次加载/切换都显示品牌遮罩，覆盖网络加载与黑屏过渡，不裸奔
+    showEnter()
+    window.clearTimeout(hideTimer)
     return viewer.load(sha).finally(() => {
-      window.clearTimeout(loadTimer)
-      loading.classList.remove('is-shown')
+      // 黑屏过渡约 280ms + 遮罩自身淡入淡出，加载完成后延迟隐藏
+      hideTimer = window.setTimeout(hideEnter, 650)
     })
   }
 
@@ -93,6 +108,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     history.replaceState(null, '', `/p/${p.id}?album=${albumId}`)
     updateCounter()
     updateInfo(p)
+    // 视角重置在 viewer.load 应用新纹理时进行（随淡入缓动回默认），不在加载期间提前切
     void beginLoad(p.sha256)
   }
 
@@ -150,15 +166,10 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   updateCounter()
   updateInfo(photo)
-  // 首张：未缓存则显示整屏入场动画，等纹理加载完再淡出
-  if (!viewer.isLoaded(photos[index].sha256)) enter.classList.add('is-shown')
+  // 首张：beginLoad 内部已亮品牌遮罩，等纹理加载完再淡出
   void beginLoad(photos[index].sha256)
     .catch(() => {
       /* 图片加载失败：保持深色底，不阻断 */
-    })
-    .finally(() => {
-      enter.classList.add('is-done')
-      window.setTimeout(() => enter.remove(), 500)
     })
 
   // 页面卸载时释放 WebGL 上下文
@@ -169,6 +180,8 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     window.removeEventListener('touchstart', showControls)
     pill.removeEventListener('mouseleave', showControls)
     window.removeEventListener('pagehide', dispose)
+    window.clearTimeout(hideTimer)
+    window.clearTimeout(enterResetTimer)
     viewer.dispose()
   }
 }

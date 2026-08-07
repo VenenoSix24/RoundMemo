@@ -99,6 +99,27 @@ func TestAdminSettingsAndPhotoDelete(t *testing.T) {
 		t.Fatalf("空标题应 400, got %d", rr.Code)
 	}
 
+	// 地图瓦片源：默认高德 + 照片坐标 WGS-84（EXIF 标准）
+	if rr := doRequest(t, s, http.MethodGet, "/api/settings", "", ""); !strings.Contains(rr.Body.String(), `"crs":"wgs84"`) {
+		t.Fatalf("公共 settings 默认地图源应含 wgs84, got %s", rr.Body.String())
+	}
+	// 保存自定义源
+	body := `{"map_tile":{"url":"https://example.com/{z}/{x}/{y}.png","subdomains":"","crs":"wgs84"}}`
+	if rr := doRequest(t, s, http.MethodPut, "/api/admin/settings", body, cookie); rr.Code != http.StatusOK {
+		t.Fatalf("存地图源应 200, got %d", rr.Code)
+	}
+	if rr := doRequest(t, s, http.MethodGet, "/api/settings", "", ""); !strings.Contains(rr.Body.String(), `"crs":"wgs84"`) || !strings.Contains(rr.Body.String(), `example.com`) {
+		t.Fatalf("公共 settings 应含新地图源, got %s", rr.Body.String())
+	}
+	// 非法坐标系拒绝
+	if rr := doRequest(t, s, http.MethodPut, "/api/admin/settings", `{"map_tile":{"url":"https://x/{z}/{x}/{y}.png","crs":"bd09"}}`, cookie); rr.Code != http.StatusBadRequest {
+		t.Fatalf("非法坐标系应 400, got %d", rr.Code)
+	}
+	// 空地址拒绝
+	if rr := doRequest(t, s, http.MethodPut, "/api/admin/settings", `{"map_tile":{"url":"","crs":"wgs84"}}`, cookie); rr.Code != http.StatusBadRequest {
+		t.Fatalf("空瓦片地址应 400, got %d", rr.Code)
+	}
+
 	// 建相册 + 上传到池
 	if rr := doRequest(t, s, http.MethodPost, "/api/admin/albums", `{"title":"旅行"}`, cookie); rr.Code != http.StatusCreated {
 		t.Fatalf("建相册失败: %d", rr.Code)

@@ -1,4 +1,5 @@
 import { adminApi, type AdminBackup } from '../../api/admin'
+import type { MapTileConfig } from '../../api/client'
 import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
 import { confirmDialog, openModal, toast } from '../../components/modal'
@@ -6,7 +7,7 @@ import { renderImportSection } from './import'
 import { renderSessionsSection } from './sessions'
 import { fmtDateTime } from './photoEditModal'
 
-// 设置 tab：账号 / 站点（标题·图标）/ 导入 / 会话 / 备份恢复（占位）。
+// 设置 tab：账号 / 站点（标题·图标）/ 地图瓦片源 / 导入 / 会话 / 备份恢复（占位）。
 export async function renderAdminSettings(main: HTMLElement): Promise<void> {
   const me = await adminApi.whoami()
   const settings = await adminApi.settings()
@@ -20,6 +21,7 @@ export async function renderAdminSettings(main: HTMLElement): Promise<void> {
     h('div', { class: 'settings-stack' }, [
       accountSection(me.username),
       siteSection(settings.site_title, settings.has_favicon),
+      mapTileSection(settings.map_tile),
       sectionCard('导入照片', renderImportSection),
       sectionCard('在线会话', renderSessionsSection),
       backupSection(),
@@ -123,6 +125,76 @@ function siteSection(siteTitle: string, hasFavicon: boolean): HTMLElement {
         favStatus,
       ]),
     ]),
+  ])
+}
+
+// 地图瓦片源预设：切换只填 URL 与子域（地图来源）；「照片 GPS 坐标系」独立于地图来源。
+const MAP_PRESETS: Record<string, { url: string; subdomains: string }> = {
+  amap8: {
+    url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+    subdomains: '1,2,3,4',
+  },
+  amap7: {
+    url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
+    subdomains: '1,2,3,4',
+  },
+  osm: { url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', subdomains: '' },
+}
+
+function mapTileSection(current: MapTileConfig): HTMLElement {
+  const preset = h('select', { class: 'admin-input', 'aria-label': '瓦片源预设' }, [
+    h('option', { value: 'amap8' }, '高德 · 简洁路网图（默认）'),
+    h('option', { value: 'amap7' }, '高德 · 标准街道图'),
+    h('option', { value: 'osm' }, 'OpenStreetMap'),
+    h('option', { value: 'custom' }, '自定义'),
+  ])
+  const url = h('input', { class: 'admin-input', value: current.url, spellcheck: 'false', 'aria-label': '瓦片地址模板' })
+  const subs = h('input', { class: 'admin-input', value: current.subdomains, placeholder: '逗号分隔，留空则无子域', 'aria-label': '瓦片子域' })
+  const crs = h('select', { class: 'admin-input', 'aria-label': '照片坐标系' }, [
+    h('option', { value: 'wgs84' }, 'WGS-84（EXIF 标准，默认）'),
+    h('option', { value: 'gcj02' }, 'GCJ-02（少数国内手机照片）'),
+  ])
+  crs.value = current.crs
+  const matched = Object.entries(MAP_PRESETS).find(([, p]) => p.url === current.url)?.[0]
+  preset.value = matched ?? 'custom'
+
+  preset.addEventListener('change', () => {
+    const p = MAP_PRESETS[preset.value]
+    if (!p) return
+    url.value = p.url
+    subs.value = p.subdomains
+    // crs 是照片坐标系，不随地图来源变化
+  })
+
+  const err = h('p', { class: 'admin-form-err', role: 'alert' }, '')
+  const saveBtn = h('button', {
+    class: 'btn btn-primary',
+    type: 'button',
+    onClick: async () => {
+      const u = url.value.trim()
+      if (!u) { err.textContent = '瓦片地址不能为空'; return }
+      try {
+        await adminApi.putMapTile({ url: u, subdomains: subs.value.trim(), crs: crs.value as MapTileConfig['crs'] })
+        err.textContent = ''
+        toast('地图瓦片源已更新，刷新后生效')
+      } catch (e) {
+        err.textContent = e instanceof Error ? e.message : '保存失败'
+      }
+    },
+  }, '保存地图源')
+
+  return h('section', { class: 'glass admin-card' }, [
+    h('h3', { class: 'admin-card-title' }, '地图瓦片源'),
+    h('p', { class: 'admin-section-desc text-muted' }, '地图页底图。照片 GPS 坐标系：EXIF 标准是 WGS-84，叠高德（GCJ-02 瓦片）时会自动换算；仅极少数国内手机照片的 GPS 才是 GCJ-02。' ),
+    h('div', { class: 'settings-block' }, [
+      h('div', { class: 'settings-fav-row' }, [preset, crs]),
+    ]),
+    h('div', { class: 'settings-block' }, [
+      h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '瓦片地址模板'), url]),
+      h('label', { class: 'admin-form-field' }, [h('span', { class: 'admin-form-label' }, '子域（逗号分隔）'), subs]),
+    ]),
+    err,
+    saveBtn,
   ])
 }
 

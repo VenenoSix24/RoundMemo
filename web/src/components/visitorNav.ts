@@ -33,7 +33,7 @@ export function visitorDock(current: VisitorView, ctx: VisitorNavCtx = {}): HTML
   const nav = h('nav', { class: 'visitor-dock', 'aria-label': '底部导航' }, [
     item('albums', '相册', 'grid', { onClick: () => navigate(ctx.albumsHref ?? '/albums') }),
     item('timeline', '时间线', 'list', { onClick: () => navigate(timelineHref()) }),
-    item('map', '地图', 'pin', { disabled: true }),
+    item('map', '地图', 'pin', { onClick: () => navigate('/map') }),
   ])
   return withDockIndicator(nav, 'visitor-dock', current, '.dock-item', (indicator, el) => {
     indicator.style.width = `${el.offsetWidth}px`

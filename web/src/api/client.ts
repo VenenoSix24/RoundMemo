@@ -37,6 +37,21 @@ export interface SessionInfo {
   groups: Group[]
 }
 
+// 地图瓦片源配置：url 为 XYZ 模板（{x}{y}{z}，可选 {s} 子域）；
+// crs 是照片 GPS 所属坐标系（wgs84=EXIF 标准默认，gcj02=少数国内手机照片），
+// 与瓦片坐标系不一致时才转换。
+export interface MapTileConfig {
+  url: string
+  subdomains: string
+  crs: 'wgs84' | 'gcj02'
+}
+
+export interface PublicSettings {
+  site_title: string
+  has_favicon: boolean
+  map_tile: MapTileConfig
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: 'same-origin',
@@ -70,6 +85,7 @@ export const api = {
   album: (id: number) => request<{ album: Album; photos: Photo[] }>(`/api/albums/${id}`),
   photo: (id: number) => request<Photo>(`/api/photos/${id}`),
   timeline: () => request<{ photos: Photo[] }>('/api/timeline'),
+  settings: () => request<PublicSettings>('/api/settings'),
 }
 
 // 鉴权图片 URL。缩略图/原图都由后端 /img 鉴权分发，cookie 随请求自动带上。
