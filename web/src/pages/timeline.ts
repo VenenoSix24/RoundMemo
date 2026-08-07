@@ -38,9 +38,9 @@ export async function renderTimeline(): Promise<void> {
       h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
     ]),
     h('main', { class: 'timeline' }, groups.length ? groups.map((g, i) => monthGroup(g, i)) : [emptyState()]),
-    visitorDock('timeline', { albumsHref }),
   ])
-  renderPage(page)
+  // dock 与 .page 平级：脱离 page 入场动画的 transform 包含块，position:fixed 才相对视口
+  renderPage([page, visitorDock('timeline', { albumsHref })])
   setTeardown(wireReveal(page))
 }
 
