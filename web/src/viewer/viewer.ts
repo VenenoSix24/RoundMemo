@@ -1,9 +1,8 @@
 import * as THREE from 'three'
 
 // 全景查看器：equirectangular 球面渲染 + 拖拽/滚轮/陀螺仪视角控制。
-// 渲染上下文在此封装（预留点 6），未来升 WebXR 只换会话创建方式。
-// 默认朝向偏移：用户反馈每张照片进入后的默认视角偏右 90°，
-// 正确正面应在当前默认（yaw=0）基础上向左转 90°。若方向反了改负号。
+// 渲染上下文在此封装，未来升 WebXR 只换会话创建方式。
+// 默认朝向偏移：正确正面应在当前默认（yaw=0）基础上向左转 90°。
 const DEFAULT_YAW = Math.PI / 2
 const DEFAULT_FOV = 75
 
@@ -31,7 +30,7 @@ export class PanoramaViewer {
   private pointers = new Map<number, { x: number; y: number }>()
   private pinchDist = 0
 
-  // 纹理 LRU：会话内最多缓存 6 张，相册内切换基本不重解码（开发文档 §7.3）
+  // 纹理 LRU：会话内最多缓存 6 张，相册内切换基本不重解码
   private textureCache = new Map<string, THREE.Texture>()
 
   private resizeObserver: ResizeObserver
@@ -61,7 +60,7 @@ export class PanoramaViewer {
   }
 
   // —— 纹理加载 ——
-  // 是否已缓存该纹理：切换前据此决定是否显示加载提示（避免已缓存的快速切换闪提示）。
+  // 是否已缓存该纹理：切换前据此决定是否显示加载提示。
   isLoaded(sha: string): boolean {
     return this.textureCache.has(`/img/raw/${sha}`)
   }
@@ -107,8 +106,7 @@ export class PanoramaViewer {
       this.renderer.render(this.scene, this.camera)
       return
     }
-    // 切图过渡：旧图淡出（视角不动）→ 暗底上复位视角并换新图 → 新图淡入。
-    // 旧图全程不改变视角，避免"旧图先跳一下再切"的割裂感；暗底复用深空底色。
+    // 切图过渡：旧图淡出 → 暗底上复位视角并换新图 → 新图淡入。
     const geo = this.mesh.geometry
     const oldOverlay = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: oldTex, transparent: true, opacity: 1 }))
     this.scene.add(oldOverlay)
@@ -123,7 +121,6 @@ export class PanoramaViewer {
         return
       }
       this.scene.remove(oldOverlay)
-      // 暗屏上瞬切视角（无感），换新图后淡入
       this.mesh.material = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, color: 0xffffff })
       this.resetForNewPhoto()
       this.renderer.render(this.scene, this.camera)
@@ -150,9 +147,8 @@ export class PanoramaViewer {
     this.animateViewTo(DEFAULT_YAW, 0)
   }
 
-  // 切换照片时重置视角：新照片从默认朝向+缩放进入，不继承上一张的拖动/缩放。
-  // 瞬切即可——过渡的淡入淡出由 applyTexture 承担，此处复位发生在暗屏上，无感。
-  // 陀螺仪开启时不重置（朝向由设备决定，切图应保持连续）。
+  // 切换照片时重置视角：新照片从默认朝向+缩放进入。
+  // 陀螺仪开启时不重置。
   resetForNewPhoto(): void {
     if (this.gyroOn) return
     if (this.resetting) {
@@ -167,7 +163,7 @@ export class PanoramaViewer {
     this.dirty = true
   }
 
-  // 视角补间：从当前 yaw/pitch/fov 缓动到目标（重置朝向用），任意拖动立即中断。
+  // 视角补间：从当前 yaw/pitch/fov 缓动到目标，任意拖动立即中断。
   private animateViewTo(targetYaw: number, targetPitch: number): void {
     if (this.resetting) {
       cancelAnimationFrame(this.resetRaf)
@@ -190,7 +186,7 @@ export class PanoramaViewer {
       this.camera.fov = fromFov + (DEFAULT_FOV - fromFov) * e
       this.camera.updateProjectionMatrix()
       this.applyManualView()
-      this.dirty = true // 关键：补间每帧标记脏，主循环才持续重绘
+      this.dirty = true
       if (t < 1 && this.resetting) this.resetRaf = requestAnimationFrame(step)
       else this.resetting = false
     }
@@ -289,7 +285,7 @@ export class PanoramaViewer {
     const dy = e.clientY - this.lastY
     this.lastX = e.clientX
     this.lastY = e.clientY
-    // 灵敏度 0.003：比之前 0.005 低，拖/滑同样距离照片转动更慢、更好控制
+    // 灵敏度
     this.yaw += dx * 0.003
     this.pitch += dy * 0.003
     this.pitch = THREE.MathUtils.clamp(this.pitch, -Math.PI / 2 + 0.01, Math.PI / 2 - 0.01)
@@ -334,7 +330,7 @@ export class PanoramaViewer {
   }
 
   private bindKeyboard(): void {
-    // 方向键也控制视角（桌面补充）
+    // 方向键也控制视角
     // 已在 onKey 中处理 Escape；←→ 留给页面做照片切换
   }
 

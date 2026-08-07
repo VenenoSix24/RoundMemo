@@ -6,8 +6,7 @@ import { PanoramaViewer } from '../viewer/viewer'
 import { navigate } from '../router'
 import { fmtDate } from './album'
 
-// 全景沉浸页：照片占满视口。左上常驻「返回 + 照片信息」，底部控制胶囊
-// （上一张/计数/下一张 + 陀螺仪/重置）1.5s 无操作淡出。
+// 照片占满视口。左上常驻「返回 + 照片信息」，底部控制胶囊（上一张/计数/下一张 + 陀螺仪/重置）1.5s 无操作淡出。
 export async function renderViewer(photoIdStr: string): Promise<void> {
   const photoId = Number(photoIdStr)
   let albumId = Number(new URLSearchParams(location.search).get('album')) || 0
@@ -27,8 +26,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   const root = h('div', { class: 'viewer-page' })
   const canvas = h('canvas', { class: 'viewer-canvas' })
-  // 品牌入场/切换动画：首张加载与照片切换共用。深色全屏遮罩覆盖黑屏过渡，
-  // 等纹理加载完再淡出，避免黑屏 + UI 先弹出的割裂感。
+  // 首张加载与照片切换共用
   const enter = h('div', { class: 'viewer-enter', role: 'status', 'aria-live': 'polite' }, [
     h('div', { class: 'viewer-enter-brand' }, [
       h('span', { class: 'font-accent viewer-enter-name' }, '圆忆'),
@@ -60,7 +58,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   const backBtn = h('button', {
     class: 'btn btn-ghost viewer-back',
     type: 'button',
-    // 返回上一个页面（从地图/时间线/相册进入都回对应来源）；深链直进无历史时兜底回所属相册
+    // 返回上一个页面
     onClick: () => {
       if (history.length > 1) history.back()
       else navigate(albumId ? `/a/${albumId}` : '/albums')
@@ -71,10 +69,9 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   renderPage(root)
 
-  // 先挂载再创建查看器：容器已有真实尺寸，画布初始宽高才正确。
+  // 先挂载再创建查看器
   const viewer = new PanoramaViewer(root, canvas)
 
-  // 品牌入场/切换动画：显示「圆忆 · 正在进入这个时刻」深色遮罩（首张与切图共用）
   let enterResetTimer = 0
   function showEnter(): void {
     window.clearTimeout(enterResetTimer)
@@ -92,7 +89,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   let hideTimer = 0
   function beginLoad(sha: string): Promise<void> {
-    // 每次加载/切换都显示品牌遮罩，覆盖网络加载与黑屏过渡，不裸奔
+    // 每次加载/切换都显示品牌遮罩，覆盖网络加载与黑屏过渡
     showEnter()
     window.clearTimeout(hideTimer)
     return viewer.load(sha).finally(() => {
@@ -108,7 +105,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     history.replaceState(null, '', `/p/${p.id}?album=${albumId}`)
     updateCounter()
     updateInfo(p)
-    // 视角重置在 viewer.load 应用新纹理时进行（随淡入缓动回默认），不在加载期间提前切
+    // 视角重置在 viewer.load 应用新纹理时进行，不在加载期间提前切
     void beginLoad(p.sha256)
   }
 
@@ -134,15 +131,15 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     if (btn) btn.classList.toggle('is-active', on)
   }
 
-  // —— 控件 idle 淡出（仅底部胶囊，左上信息常驻；尊重 reduced-motion）——
-  // 鼠标悬停在工具栏上时不隐藏（悬停期间常驻），移出后再计时隐藏。
+  // —— 控件 idle 淡出（仅底部胶囊）——
+  // 鼠标悬停在工具栏上时不隐藏，移出后再计时隐藏。
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   let idleTimer = 0
   const hideAfterIdle = () => {
     if (reduced) return
     window.clearTimeout(idleTimer)
     idleTimer = window.setTimeout(() => {
-      if (pill.matches(':hover')) return // 鼠标仍在工具栏上：保持常驻
+      if (pill.matches(':hover')) return // 鼠标仍在工具栏上则保持常驻
       root.classList.remove('controls-visible')
     }, 1500)
   }
@@ -157,7 +154,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   }
   showControls()
 
-  // —— 键盘切换（与查看器共用 window keydown，键位不冲突）——
+  // —— 键盘切换——
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowLeft') goTo(index - 1)
     if (e.key === 'ArrowRight') goTo(index + 1)
@@ -166,7 +163,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
 
   updateCounter()
   updateInfo(photo)
-  // 首张：beginLoad 内部已亮品牌遮罩，等纹理加载完再淡出
+  // beginLoad 内部已亮品牌遮罩，等纹理加载完再淡出
   void beginLoad(photos[index].sha256)
     .catch(() => {
       /* 图片加载失败：保持深色底，不阻断 */

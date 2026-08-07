@@ -18,7 +18,7 @@ const faviconStorageKey = "settings/favicon"
 const maxFaviconBytes = 1 << 20
 
 // mapTileConfig 地图瓦片源。url 为 XYZ 瓦片模板（支持 {x}{y}{z} 与可选 {s} 子域）。
-// crs 是照片 GPS 所属坐标系：wgs84（EXIF 标准、绝大多数相机，默认）或 gcj02（少数国内手机照片）。
+// crs 是照片 GPS 所属坐标系：wgs84（EXIF 标准、绝大多数相机，默认）或 gcj02（少数手机照片）。
 // 前端据 url 识别瓦片坐标系（高德=gcj02/OSM=wgs84），照片与瓦片坐标系不一致时才转换。
 type mapTileConfig struct {
 	URL        string `json:"url"`
@@ -26,7 +26,7 @@ type mapTileConfig struct {
 	CRS        string `json:"crs"`        // 照片 GPS 坐标系：wgs84 | gcj02
 }
 
-// defaultMapTile 默认高德简洁路网图（style=8，比标准街道图更素净）：国内可访问、无需 key。
+// defaultMapTile 默认高德简洁路网图。
 // 照片 EXIF GPS 标准为 WGS-84，叠高德（GCJ-02 瓦片）时前端自动换算。
 var defaultMapTile = mapTileConfig{
 	URL:        "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",

@@ -7,7 +7,6 @@ import { photoDisplayTitle, viewToggle } from '../components/viewToggle'
 import { navigate, setTeardown } from '../router'
 
 // 时间线：按拍摄时间纵向轴，月份分组 + 粘性标签；每条目 = 缩略图 + 标题 + 时间 + 地点。
-// 返回按钮优先回来源页（从相册照片页进入则回该页），否则回相册列表；「相册」tab 同理。
 export async function renderTimeline(): Promise<void> {
   let photos: Photo[] = []
   try {

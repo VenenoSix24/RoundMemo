@@ -72,7 +72,7 @@ func (s *Server) unlock(w http.ResponseWriter, r *http.Request, byCode bool) {
 		return
 	}
 
-	// 原子递增用量；max_uses 已满返回 false（并发下不超卖）。
+	// 原子递增用量；max_uses 已满返回 false。
 	ok, err := store.IncrementGrantUse(s.db, grant.ID)
 	if err != nil {
 		s.internalError(w, err)

@@ -1,0 +1,22 @@
+[Unit]
+Description=RoundMemo 360 panorama memorial album
+Documentation=https://github.com/VenenoSix24/RoundMemo
+After=network.target
+
+[Service]
+Type=simple
+# install.sh 创建的系统用户；目录 /opt/roundmemo 归其所有
+User=roundmemo
+Group=roundmemo
+# 前端 dist 与二进制相对路径解析依赖此工作目录（见 router.go mountStatic）
+WorkingDirectory=/opt/roundmemo
+ExecStart=/opt/roundmemo/roundmemo -config /opt/roundmemo/config.toml
+Restart=always
+RestartSec=3
+# 大上传与图片流式分发需要较多并发连接
+LimitNOFILE=4096
+# 优雅停机由二进制自处理（SIGTERM 后 10s 排空），systemd 再给 5s 余量
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

@@ -4,8 +4,7 @@ import { icon } from '../../components/icons'
 import { confirmDialog, copyText, openModal, toast } from '../../components/modal'
 import { navigate } from '../../router'
 
-// 授权管理（Owner 后台核心）：grant 行 = 标签 + 数字码/分享链接（可复制）
-// + 状态徽 + 用量 + 行内操作（开关/有效期/用量/重生码/重生链接/单设备下线/删除）。
+// 授权管理：grant 行 = 标签 + 数字码/分享链接 + 状态徽 + 用量 + 行内操作（开关/有效期/用量/重生码/重生链接/单设备下线/删除）。
 
 export async function renderAdminGrants(main: HTMLElement): Promise<void> {
   const [groupsRes, grantsRes] = await Promise.all([adminApi.groups(), adminApi.grants()])

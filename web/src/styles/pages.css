@@ -26,7 +26,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 62px; /* 与 admin 顶栏一致的高度感 */
+  min-height: 62px;
   padding: 0 14px;
   margin: 0 auto 20px;
   max-width: 1200px;
@@ -129,7 +129,7 @@
   min-height: var(--tap);
   padding: 0 6px;
   margin: 0 -6px;
-  font-size: var(--fs-xl); /* 圆忆字号对齐 admin 顶栏 */
+  font-size: var(--fs-xl);
   color: var(--text-primary);
   border-radius: var(--r-md);
   cursor: pointer;
@@ -194,7 +194,7 @@
   gap: 4px;
   padding: 6px;
   border-radius: 999px;
-  /* 液态玻璃：静态高光带（左上斜向反光，非动画）+ 底部暖金晕染（玻璃厚度感） */
+  /* 液态玻璃：静态高光带 + 底部暖金晕染 */
   background:
     linear-gradient(115deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 32%, transparent 55%),
     radial-gradient(150% 190% at 88% 118%, var(--glow-warm) 0%, transparent 55%),
@@ -253,7 +253,7 @@
 }
 @media (max-width: 767px) {
   .view-seg {
-    display: none; /* 移动端视图切换由底部 dock 承担 */
+    display: none;
   }
 }
 
@@ -366,7 +366,7 @@
 .photo-frame {
   position: relative;
   width: 100%;
-  aspect-ratio: 2 / 1; /* 长方形，贴近全景比例（手机/桌面一致） */
+  aspect-ratio: 2 / 1; /* 长方形，贴近全景比例 */
   overflow: hidden;
   background: var(--bg-elevated);
 }
@@ -540,9 +540,9 @@
   font-weight: 500;
 }
 
-/* —— 口令入口页（电影感）：光场三叠层 + 滚动叙事三章 —— */
+/* —— 口令入口页 —— */
 .entry {
-  /* 入口页自带暖纸调色板，不随系统主题翻转（品牌化的"序章"时刻） */
+  /* 入口页自带暖纸调色板，不随系统主题翻转 */
   --ink: #26221b;
   --ink-2: #6f6859;
   --ink-3: #a89f8c;
@@ -894,7 +894,7 @@
   }
 }
 
-/* —— 第一章 · 满屏全景（背景透明，山脊贴地，随滚动平移）—— */
+/* —— 第一章 · 满屏全景 —— */
 .entry .c1 {
   position: relative;
   z-index: 10;
@@ -963,7 +963,7 @@
   color: var(--gold-deep);
 }
 
-/* —— 第二章 · 不对称左右（编辑感）—— */
+/* —— 第二章 · 不对称左右 —— */
 .entry .c2 {
   position: relative;
   z-index: 10;
@@ -1028,7 +1028,7 @@
   color: var(--ink-3);
 }
 
-/* —— 第三章 · 满屏缩放（飞向黄昏）—— */
+/* —— 第三章 · 满屏缩放 —— */
 .entry .c3 {
   position: relative;
   z-index: 10;
@@ -1301,7 +1301,7 @@
   opacity: 1;
 }
 
-/* 首张入场整屏动画：深底 + 品牌 + 旋转金环，等图片加载完淡出 */
+/* 首张入场整屏动画，等图片加载完淡出 */
 .viewer-enter {
   position: absolute;
   inset: 0;
@@ -1392,7 +1392,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 控件 idle 淡出/淡入：下滑 + 淡入淡出，避免直接消失的生硬感 */
+/* 控件 idle 淡出/淡入：下滑 + 淡入淡出 */
 .viewer-page:not(.controls-visible) .viewer-pill {
   opacity: 0;
   transform: translateX(-50%) translateY(14px);
@@ -1404,7 +1404,7 @@
   background: var(--accent-soft);
 }
 
-/* —— 左上：返回相册（玻璃胶囊）+ 照片信息（无背景艺术化批注）—— */
+/* —— 左上：返回相册+ 照片信息 —— */
 .viewer-top {
   position: absolute;
   top: 0;
@@ -1414,14 +1414,14 @@
   max-width: min(400px, 78vw);
   display: flex;
   flex-direction: column;
-  gap: 18px; /* 返回按钮与信息上下隔开，不挤在一起 */
+  gap: 18px;
   pointer-events: none;
 }
 .viewer-back {
   align-self: flex-start;
   pointer-events: auto;
   min-height: 34px;
-  padding: 0 12px; /* 比默认 .btn 的 20px 收窄，不显得臃肿 */
+  padding: 0 12px;
   gap: 6px;
   background: rgba(10, 12, 18, 0.28);
   border-color: rgba(255, 255, 255, 0.22);
@@ -1443,8 +1443,8 @@
   font-size: clamp(22px, 3.2vw, 30px);
   font-weight: 500;
   line-height: 1.35;
-  color: #f2c96a; /* 流沙金：主题色做标题，文艺感 */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55); /* 紧致单层，保证亮景可读，不糊成黑色背景 */
+  color: #f2c96a;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1465,7 +1465,7 @@
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
-/* —— 响应式断点（设计规范 §5.2 / §6）—— */
+/* —— 响应式断点 —— */
 @media (min-width: 560px) {
   .photo-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1671,7 +1671,7 @@
   color: var(--secondary);
 }
 
-/* 深色模式：瓦片保持原亮度（否则浅色地名标签会被压暗到不可见），仅调整标记阴影 */
+/* 深色模式：瓦片保持原亮度，仅调整标记阴影 */
 @media (prefers-color-scheme: dark) {
   .map-marker {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45), 0 0 0 3px var(--glow-top);

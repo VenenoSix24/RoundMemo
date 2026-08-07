@@ -14,7 +14,7 @@ body {
   height: 100%;
 }
 
-/* 始终预留纵向滚动条位：SPA 切页时滚动条出现/消失不再改变布局宽度，避免画面横跳 */
+/* 始终预留纵向滚动条位，避免画面横跳 */
 html {
   scrollbar-gutter: stable;
 }
@@ -26,7 +26,7 @@ body {
   color: var(--text-primary);
   background: var(--bg-base);
   -webkit-font-smoothing: antialiased;
-  /* 不禁用缩放：全景用户需要捏合（设计规范 §6） */
+  /* 不禁用缩放：全景用户需要捏合 */
   overflow-x: hidden; /* 入口页 180vw 全景平移不产生横向滚动条 */
 }
 
@@ -70,7 +70,7 @@ h3 {
   border-radius: 4px;
 }
 
-/* —— 玻璃材质：仅用于浮层（工具胶囊/信息卡/模态），禁止作大面背景 —— */
+/* —— 玻璃材质：仅用于浮层（工具胶囊/信息卡/模态 —— */
 .glass {
   background: var(--bg-glass);
   backdrop-filter: blur(24px) saturate(160%);

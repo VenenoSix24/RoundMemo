@@ -65,7 +65,7 @@ func GetPhotoBySHA(db *sql.DB, sha string) (*Photo, error) {
 	return scanPhoto(row)
 }
 
-// ListAllPhotos 全量照片（照片池，后台「照片」tab 用），按拍摄时间升序。
+// ListAllPhotos 全量照片（照片池），按拍摄时间升序。
 func ListAllPhotos(db *sql.DB) ([]Photo, error) {
 	rows, err := db.Query(`
 		SELECT id, storage_key, sha256, byte_size, width, height,
@@ -93,14 +93,14 @@ func SetAlbumCover(db *sql.DB, albumID, photoID int64) error {
 	return err
 }
 
-// SetAlbumCoverForce 强制设置封面（管理端手动设，覆盖当前封面）。
+// SetAlbumCoverForce 强制设置封面。
 func SetAlbumCoverForce(db *sql.DB, albumID, photoID int64) error {
 	_, err := db.Exec(`UPDATE albums SET cover_photo_id=?, updated_at=? WHERE id=?`,
 		photoID, time.Now().Unix(), albumID)
 	return err
 }
 
-// DeletePhoto 删除照片行并返回其元数据（供上层清理存储文件）。
+// DeletePhoto 删除照片行并返回其元数据。
 // 若该照片是某相册封面，先清封面引用，避免悬空。
 func DeletePhoto(db *sql.DB, id int64) (*Photo, error) {
 	p, err := GetPhoto(db, id)

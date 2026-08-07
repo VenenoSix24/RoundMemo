@@ -38,7 +38,7 @@ export interface SessionInfo {
 }
 
 // 地图瓦片源配置：url 为 XYZ 模板（{x}{y}{z}，可选 {s} 子域）；
-// crs 是照片 GPS 所属坐标系（wgs84=EXIF 标准默认，gcj02=少数国内手机照片），
+// crs 是照片 GPS 所属坐标系（wgs84=EXIF 标准默认，gcj02=少数手机照片），
 // 与瓦片坐标系不一致时才转换。
 export interface MapTileConfig {
   url: string

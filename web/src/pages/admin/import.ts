@@ -2,7 +2,7 @@ import { adminApi, uploadPhotos, type ImportResult } from '../../api/admin'
 import { h } from '../../components/dom'
 import { icon } from '../../components/icons'
 
-// 导入区块（设置页内嵌）：本地上传（带进度）+ 服务器目录批量导入，一律进照片池。
+// 导入区块：本地上传+ 服务器目录批量导入，进照片池。
 export async function renderImportSection(container: HTMLElement): Promise<void> {
   // —— 上传区 ——
   const uploadZone = h('div', { class: 'import-dropzone', tabindex: '0', role: 'button', 'aria-label': '选择照片上传' }, [

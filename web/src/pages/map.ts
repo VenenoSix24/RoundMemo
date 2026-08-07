@@ -1,7 +1,6 @@
+/// <reference types="leaflet.markercluster" />
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-// 仅引入 markercluster 的类型增强（运行时经 ?url 经典脚本注入，规避其 UMD 裸 L 引用的坑）
-/// <reference types="leaflet.markercluster" />
 import markerclusterUrl from 'leaflet.markercluster/dist/leaflet.markercluster.js?url'
 import { api, imgUrl, type MapTileConfig, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
@@ -11,10 +10,10 @@ import { photoDisplayTitle, viewToggle } from '../components/viewToggle'
 import { navigate, setTeardown } from '../router'
 
 // 地图视图记忆：SPA 切换页面/进查看器再回来时，恢复上次的缩放与位置而不是重置到全景范围。
-// 带 crs 标记：瓦片源坐标系变化时不沿用旧视图（避免跨坐标系错位）。
+// 带 crs 标记：瓦片源坐标系变化时不沿用旧视图。
 let savedView: { center: [number, number]; zoom: number; crs: string } | null = null
 
-// 兜底默认地图源（设置读取失败时）：高德简洁路网图，国内可访问、无需 key。
+// 兜底默认地图源。
 // 照片 EXIF GPS 标准为 WGS-84，叠高德（GCJ-02 瓦片）时前端自动换算。
 const defaultTile: MapTileConfig = {
   url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
@@ -62,7 +61,7 @@ export async function renderMap(): Promise<void> {
     map = null
   })
 
-  // 并行取会话可见照片与瓦片源配置（地图源读取失败用默认高德）
+  // 并行取会话可见照片与瓦片源配置
   const [photos, tileCfg] = await Promise.all([
     api.timeline().then((r) => r.photos).catch(() => null),
     api.settings().then((s) => s.map_tile).catch(() => null),
@@ -85,7 +84,7 @@ export async function renderMap(): Promise<void> {
     return
   }
 
-  // 先渲染基础地图（瓦片本身就是加载反馈），再注入 markercluster 补标记
+  // 先渲染基础地图，再注入 markercluster 补标记
   const rootEl = h('div', { class: 'map-root' })
   loading.replaceWith(rootEl)
   map = L.map(rootEl)
@@ -101,7 +100,7 @@ export async function renderMap(): Promise<void> {
   if (disposed) return
 
   // 瓦片源坐标系：高德=GCJ-02，OSM=WGS-84，未知源按照片坐标系免转换。
-  // 照片 EXIF GPS 标准为 WGS-84，与瓦片坐标系不一致时才转换（叠高德需 WGS-84→GCJ-02）。
+  // 照片 EXIF GPS 标准为 WGS-84，与瓦片坐标系不一致时才转换。
   const tileCrs: 'wgs84' | 'gcj02' = cfg.url.includes('autonavi') ? 'gcj02' : cfg.url.includes('openstreetmap') ? 'wgs84' : cfg.crs
   const toCoords = (p: Photo): [number, number] => {
     const [lat, lng] = [p.gps_lat!, p.gps_lng!]
@@ -136,7 +135,7 @@ export async function renderMap(): Promise<void> {
   }
   cluster.addTo(map)
 
-  // 恢复上次视图（坐标系一致时），否则首次按标记范围取景
+  // 恢复上次视图，否则首次按标记范围取景
   map.on('moveend', () => {
     if (map) savedView = { center: [map.getCenter().lat, map.getCenter().lng], zoom: map.getZoom(), crs: tileCrs }
   })
@@ -155,8 +154,6 @@ function tileLayerFrom(cfg: MapTileConfig): L.TileLayer {
     opts.subdomains = cfg.subdomains.split(',').map((s) => s.trim()).filter(Boolean)
   }
   let url = cfg.url
-  // 高 DPR 设备（手机普遍 2-3x）：高德瓦片默认 256px，放大到物理像素会发糊。
-  // scl 按 DPR 取整（2→512px / 3→768px / 4→1024px），保证物理像素 1:1 不再放大。OSM 无 2x 变体保持原样。
   if (url.includes('autonavi') && window.devicePixelRatio >= 1.5) {
     const scl = Math.min(4, Math.ceil(window.devicePixelRatio))
     url += (url.includes('?') ? '&' : '?') + `scl=${scl}`
@@ -174,9 +171,7 @@ function attributionFor(url: string): string {
   }
 }
 
-// WGS-84 ↔ GCJ-02（火星坐标系）：国内瓦片源（高德/腾讯等）与国内手机照片 GPS 都用火星坐标，
-// 国外相机/OSM 用标准 WGS-84。两者混用时才需要转换，且转换公式必须用 π 而非百度专用的 x_pi
-// （x_pi=π·3000/180 是 bd09 常量，误用会导致偏移方向错乱）。境外坐标（outOfChina）无偏移。
+// WGS-84 ↔ GCJ-02
 function wgs84ToGcj02(lat: number, lng: number): [number, number] {
   const a = 6378245
   const ee = 0.006693421622965943
@@ -206,7 +201,7 @@ function wgs84ToGcj02(lat: number, lng: number): [number, number] {
   return [mgLat, mgLng]
 }
 
-// GCJ-02 → WGS-84：单步近似逆变换（误差 ~1-2m），多数地图库的标准做法。
+// GCJ-02 → WGS-84：单步近似逆变换。
 function gcj02ToWgs84(lat: number, lng: number): [number, number] {
   const [gLat, gLng] = wgs84ToGcj02(lat, lng)
   return [lat * 2 - gLat, lng * 2 - gLng]

@@ -6,8 +6,7 @@ import { wireReveal } from '../components/reveal'
 import { viewToggle } from '../components/viewToggle'
 import { navigate, setTeardown } from '../router'
 
-// 相册列表：顶栏（左：圆忆·分组品牌切换 / 中：视图 tab / 右：首页+彻底退出）
-// + 移动端底部 dock + 暖纸卡片（滚动淡入）。
+// 相册列表：顶栏（左：圆忆·分组品牌切换 / 中：视图 tab / 右：首页+彻底退出） + 移动端底部 dock + 暖纸卡片（滚动淡入）。
 export async function renderAlbums(): Promise<void> {
   if (state.activeGroupId === 0) {
     // 浏览器刷新后内存 state 是空的，但会话 cookie 还在：先尝试用会话恢复分组，

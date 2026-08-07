@@ -4,7 +4,7 @@ import { icon } from '../../components/icons'
 import { withDockIndicator } from '../../components/dockIndicator'
 import { navigate } from '../../router'
 
-// Owner 后台壳：顶栏（品牌 + 居中 tab + 身份/退出）；桌面 tab 在顶栏，手机 tab 沉底 dock。
+// Owner 后台：顶栏（品牌 + 居中 tab + 身份/退出）；桌面 tab 在顶栏，手机 tab 沉底 dock。
 // 进入任意 admin 页先验身份，401 转登录页。导航顺序：照片/相册/授权/分组/设置。
 
 export type AdminTab = 'photos' | 'albums' | 'grants' | 'groups' | 'settings'
@@ -97,7 +97,7 @@ export async function renderAdminShell(active: AdminTab, build: (main: HTMLEleme
   try {
     await build(main)
   } finally {
-    // tab 切换动画：内容就绪后淡入上移（强制回流保证过渡生效）
+    // tab 切换动画：内容就绪后淡入上移
     void main.offsetWidth
     main.classList.add('is-in')
   }

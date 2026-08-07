@@ -26,8 +26,7 @@ type Server struct {
 	storage     storage.Storage
 	secret      []byte
 	codeLimiter *rateLimiter
-	// restoreMu 串行化备份恢复：恢复会关闭并替换运行中的 DB，期间任何并发
-	// 请求都会撞上已关闭的句柄，故恢复操作全局互斥。
+	// restoreMu 串行化备份恢复：恢复会关闭并替换运行中的 DB，期间任何并发请求都会撞上已关闭的句柄，故恢复操作全局互斥。
 	restoreMu sync.Mutex
 }
 
@@ -137,7 +136,7 @@ func (s *Server) Router() http.Handler {
 }
 
 // mountStatic 服务 web/dist 前端：存在则按静态文件 + SPA 兜底，缺失则给占位提示。
-// 生产部署把 dist 与二进制放同目录（web/dist）即可（阶段 8 会处理 embed）。
+// 生产部署把 dist 与二进制放同目录（web/dist）即可。
 func (s *Server) mountStatic(r chi.Router) {
 	dist := filepath.Join("web", "dist")
 	if _, err := os.Stat(dist); err != nil {

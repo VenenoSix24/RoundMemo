@@ -8,7 +8,7 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-// 缩略图最长边（开发文档 §7.3 / §8.1：1024 预览 + 256 列表）。
+// 缩略图最长边。
 const (
 	ThumbPreview = 1024
 	ThumbList    = 256

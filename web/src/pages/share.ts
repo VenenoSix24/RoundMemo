@@ -3,7 +3,7 @@ import { state, rememberGroup, restoreGroup } from '../state'
 import { h, renderPage } from '../components/dom'
 import { navigate } from '../router'
 
-// 分享落地：自动用 token 解锁，成功进相册；失败回口令页（统一提示）。
+// 分享落地：自动用 token 解锁，成功进相册；失败回口令页。
 export async function renderShare(token: string): Promise<void> {
   renderPage(
     h('div', { class: 'share-loading' }, [

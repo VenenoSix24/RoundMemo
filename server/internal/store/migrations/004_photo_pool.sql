@@ -1,6 +1,6 @@
 -- 照片池模型：照片不再属于单一相册，上传一律进"照片池"；
 -- 相册通过 album_photos 引用池中照片，一张照片可属多个相册。
--- 回填现有归属后删除 photos.album_id 列（SQLite 3.35+ 支持 DROP COLUMN）。
+-- 回填现有归属后删除 photos.album_id 列。
 CREATE TABLE album_photos (
   album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
   photo_id INTEGER NOT NULL REFERENCES photos(id) ON DELETE CASCADE,

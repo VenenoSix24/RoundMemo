@@ -4,8 +4,7 @@ import { h, renderPage } from '../components/dom'
 import { openModal } from '../components/modal'
 import { navigate, setTeardown } from '../router'
 
-// 口令入口页（电影感版本）：光场三叠层 + 滚动叙事三章 + 玻璃口令卡。
-// 隐私优先：滚动章节全是插画（山脊/圆环/落日），不渲染任何真实照片；口令逻辑与旧版一致（错对统一、防枚举）。
+// 口令入口页：光场三叠层 + 滚动叙事三章 + 玻璃口令卡。
 
 const RIDGE_SVG = `
 <svg viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
@@ -165,7 +164,7 @@ export async function renderEntry(): Promise<void> {
     ? wireParallax(root)
     : null
 
-  // 深链接直达时复位滚动（避免浏览器记住上一次的滚动位置）
+  // 深链接直达时复位滚动
   window.scrollTo(0, 0)
   setTeardown(() => {
     disposeScroll?.()
@@ -174,8 +173,7 @@ export async function renderEntry(): Promise<void> {
   })
 }
 
-// —— 口令卡：口令态（错对统一防枚举）。onBack 非空时（从"切换分组→输入新口令"进入）
-// 显示返回按钮，可回到欢迎卡；无会话时不留返回入口。——
+// —— 口令卡：口令态。onBack 非空时显示返回按钮，可回到欢迎卡；无会话时不留返回入口。——
 function renderCodeForm(card: HTMLElement, onBack: (() => void) | null): void {
   card.replaceChildren() // 从欢迎态切回口令态时清掉旧内容
   const boxes = Array.from({ length: 8 }, () => h('input', {
@@ -201,7 +199,7 @@ function renderCodeForm(card: HTMLElement, onBack: (() => void) | null): void {
       if (state.activeGroupId === 0) rememberGroup(info.groups[0]?.id ?? 0)
       navigate('/albums')
     } catch {
-      // 错对统一：仅微震 + 清空，不提示"码不存在"（防枚举）
+      // 错对统一：仅微震 + 清空，不提示"码不存在"
       shake()
       boxes.forEach((b) => {
         b.value = ''
@@ -308,7 +306,7 @@ function renderWelcome(card: HTMLElement): void {
   }
 }
 
-// —— 滚动叙事（1:1 直映，无 lerp → 不回弹）——
+// —— 滚动叙事——
 function clamp(v: number): number {
   return Math.max(0, Math.min(1, v))
 }
@@ -339,7 +337,7 @@ function wireScroll(root: HTMLElement): (() => void) | null {
   let rafId = 0
 
   // 键盘弹出检测：视口可用高度被键盘压缩即判定。不能用 innerHeight 作分母——
-  // Android 键盘弹出时 innerHeight 与 visualViewport.height 同步缩小（比值不变），
+  // Android 键盘弹出时 innerHeight 与 visualViewport.height 同步缩小，
   // 唯有相对「无键盘时的初始高度」的缩水才可靠；iOS 则只有 visualViewport 缩小。
   const vv = window.visualViewport
   const baseViewportH = vv ? vv.height : window.innerHeight
@@ -347,7 +345,7 @@ function wireScroll(root: HTMLElement): (() => void) | null {
   const detectKb = () => {
     const h = vv ? vv.height : window.innerHeight
     kbOpen = h < baseViewportH * 0.85
-    // 键盘弹出期间 hero 强制可见：即使浏览器为露出输入框自动滚动（scrollY 变大），
+    // 键盘弹出期间 hero 强制可见：即使浏览器为露出输入框自动滚动，
     // 也不让口令卡随滚动公式淡出。键盘收起后恢复常态。
     if (kbOpen) {
       hero.style.transform = 'none'
@@ -365,7 +363,7 @@ function wireScroll(root: HTMLElement): (() => void) | null {
     const p = total > 0 ? y / total : 0
     progress.style.transform = `scaleX(${p})`
 
-    // hero 上浮淡出（1:1）：键盘弹出期间冻结，避免输口令时卡片淡出
+    // hero 上浮淡出：键盘弹出期间冻结，避免输口令时卡片淡出
     if (!kbOpen) {
       const hp = Math.min(1, y / (innerHeight * 0.85))
       hero.style.transform = `translateY(${y * 0.28}px)`
@@ -410,7 +408,7 @@ function wireScroll(root: HTMLElement): (() => void) | null {
   }
 }
 
-// 桌面鼠标视差 + 磁性按钮（仅精细指针设备）
+// 桌面鼠标视差 + 磁性按钮
 function wireParallax(root: HTMLElement): () => void {
   const sun = root.querySelector('.scene .sun') as HTMLElement | null
   const onMouseMove = (e: MouseEvent) => {
