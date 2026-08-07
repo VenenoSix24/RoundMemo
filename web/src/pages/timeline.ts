@@ -2,8 +2,9 @@ import { api, imgUrl, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
 import { icon } from '../components/icons'
 import { homeExitButtons, visitorDock } from '../components/visitorNav'
+import { wireReveal } from '../components/reveal'
 import { photoDisplayTitle, viewToggle } from '../components/viewToggle'
-import { navigate } from '../router'
+import { navigate, setTeardown } from '../router'
 
 // 时间线：按拍摄时间纵向轴，月份分组 + 粘性标签；每条目 = 缩略图 + 标题 + 时间 + 地点。
 // 返回按钮优先回来源页（从相册照片页进入则回该页），否则回相册列表；「相册」tab 同理。
@@ -30,17 +31,17 @@ export async function renderTimeline(): Promise<void> {
   }, icon('arrow-left'))
 
   const groups = groupByMonth(photos)
-  renderPage(
-    h('div', { class: 'page' }, [
-      h('header', { class: 'glass topbar' }, [
-        h('div', { class: 'topbar-left' }, [backBtn, h('h1', { class: 'topbar-title font-accent' }, '时间线')]),
-        h('div', { class: 'topbar-center' }, [viewToggle('timeline', { albumsHref })]),
-        h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
-      ]),
-      h('main', { class: 'timeline' }, groups.length ? groups.map(monthGroup) : [emptyState()]),
-      visitorDock('timeline', { albumsHref }),
+  const page = h('div', { class: 'page' }, [
+    h('header', { class: 'glass topbar' }, [
+      h('div', { class: 'topbar-left' }, [backBtn, h('h1', { class: 'topbar-title font-accent' }, '时间线')]),
+      h('div', { class: 'topbar-center' }, [viewToggle('timeline', { albumsHref })]),
+      h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
     ]),
-  )
+    h('main', { class: 'timeline' }, groups.length ? groups.map((g, i) => monthGroup(g, i)) : [emptyState()]),
+    visitorDock('timeline', { albumsHref }),
+  ])
+  renderPage(page)
+  setTeardown(wireReveal(page))
 }
 
 function groupByMonth(photos: Photo[]): { year: number; label: string; photos: Photo[] }[] {
@@ -62,11 +63,17 @@ function groupByMonth(photos: Photo[]): { year: number; label: string; photos: P
   return [...map.values()]
 }
 
-function monthGroup(g: { year: number; label: string; photos: Photo[] }): HTMLElement {
-  return h('section', { class: 'timeline-group', 'data-year': String(g.year) }, [
-    h('h2', { class: 'timeline-month font-accent' }, g.label),
-    h('div', { class: 'timeline-strip' }, g.photos.map(timelineItem)),
-  ])
+function monthGroup(g: { year: number; label: string; photos: Photo[] }, i: number): HTMLElement {
+  return h(
+    'section',
+    {
+      class: 'timeline-group',
+      'data-year': String(g.year),
+      dataset: { reveal: '' },
+      style: i < 6 ? `--rd:${i * 40}ms` : undefined, // 首屏 stagger
+    },
+    [h('h2', { class: 'timeline-month font-accent' }, g.label), h('div', { class: 'timeline-strip' }, g.photos.map(timelineItem))],
+  )
 }
 
 function timelineItem(p: Photo): HTMLElement {

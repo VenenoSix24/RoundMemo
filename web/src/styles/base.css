@@ -14,6 +14,11 @@ body {
   height: 100%;
 }
 
+/* 始终预留纵向滚动条位：SPA 切页时滚动条出现/消失不再改变布局宽度，避免画面横跳 */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: var(--font-ui);
   font-size: var(--fs-base);
@@ -134,11 +139,15 @@ h3 {
   min-height: var(--tap);
   border-radius: var(--r-md);
   color: var(--text-primary);
-  transition: background var(--dur-fast) ease-out;
+  transition: background var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
 }
 
 .icon-btn:hover {
   background: var(--bg-glass-strong);
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
 }
 
 .icon-btn:disabled {

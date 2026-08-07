@@ -2,11 +2,12 @@ import { api, imgUrl, type Album } from '../api/client'
 import { state } from '../state'
 import { h, renderPage } from '../components/dom'
 import { groupBrand, homeExitButtons, visitorDock } from '../components/visitorNav'
+import { wireReveal } from '../components/reveal'
 import { viewToggle } from '../components/viewToggle'
-import { navigate } from '../router'
+import { navigate, setTeardown } from '../router'
 
 // 相册列表：顶栏（左：圆忆·分组品牌切换 / 中：视图 tab / 右：首页+彻底退出）
-// + 移动端底部 dock + 实色相册卡片。
+// + 移动端底部 dock + 暖纸卡片（滚动淡入）。
 export async function renderAlbums(): Promise<void> {
   if (state.activeGroupId === 0) {
     navigate('/')
@@ -20,13 +21,13 @@ export async function renderAlbums(): Promise<void> {
     return
   }
 
-  renderPage(
-    h('div', { class: 'page' }, [
-      topBar(),
-      h('main', { class: 'album-list' }, albums.length ? albums.map(albumCard) : [emptyState()]),
-      visitorDock('albums'),
-    ]),
-  )
+  const page = h('div', { class: 'page' }, [
+    topBar(),
+    h('main', { class: 'album-list' }, albums.length ? albums.map((a, i) => albumCard(a, i)) : [emptyState()]),
+    visitorDock('albums'),
+  ])
+  renderPage(page)
+  setTeardown(wireReveal(page))
 }
 
 function topBar(): HTMLElement {
@@ -37,7 +38,7 @@ function topBar(): HTMLElement {
   ])
 }
 
-function albumCard(a: Album): HTMLElement {
+function albumCard(a: Album, i: number): HTMLElement {
   const cover = a.cover_sha
     ? h('img', { class: 'album-cover', src: imgUrl('thumb1024', a.cover_sha), alt: a.title, loading: 'lazy' })
     : h('div', { class: 'album-cover album-cover-empty', 'aria-hidden': 'true' })
@@ -47,6 +48,8 @@ function albumCard(a: Album): HTMLElement {
       class: 'album-card',
       role: 'link',
       tabindex: '0',
+      dataset: { reveal: '' },
+      style: i < 8 ? `--rd:${i * 40}ms` : undefined, // 首屏 stagger，8 张后交给滚动自然点亮
       onClick: () => navigate(`/a/${a.id}`),
       onKeydown: (e: Event) => {
         if ((e as KeyboardEvent).key === 'Enter') navigate(`/a/${a.id}`)

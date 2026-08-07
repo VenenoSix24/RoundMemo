@@ -1,5 +1,9 @@
-// 轻量 DOM 构建辅助：h('div', {class, onClick, ...}, children)。
-type Attrs = Record<string, string | number | boolean | ((e: Event) => void) | undefined>
+// 轻量 DOM 构建辅助：h('div', {class, dataset, onClick, ...}, children)。
+// dataset 传对象（如 { reveal: '' }）会映射成 data-* 属性，其余键按属性/事件处理。
+type Attrs = Record<
+  string,
+  string | number | boolean | ((e: Event) => void) | Record<string, string> | undefined
+>
 type Child = Node | string | null | undefined
 type Children = Child | Child[]
 
