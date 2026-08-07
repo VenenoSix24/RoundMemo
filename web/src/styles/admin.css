@@ -116,7 +116,7 @@
   font-weight: 500;
 }
 
-/* 顶栏居中 tab（桌面）：圆角分段样式，绝对居中 */
+/* 顶栏居中 tab（桌面）：圆角分段样式 + 滑动指示器，绝对居中 */
 .admin-nav {
   position: absolute;
   left: 50%;
@@ -127,7 +127,16 @@
   border-radius: 999px;
   background: var(--bg-glass);
 }
+.admin-nav .dock-indicator {
+  top: 2px;
+  bottom: 2px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: 0 1px 0 var(--glow-top) inset;
+}
 .admin-nav-item {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -138,18 +147,17 @@
   font-size: var(--fs-sm);
   font-weight: 500;
   white-space: nowrap;
-  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+  transition: color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
 }
 .admin-nav-item:active {
   transform: scale(0.96);
 }
 .admin-nav-item:hover {
-  background: var(--bg-glass-strong);
   color: var(--text-primary);
 }
 .admin-nav-item.is-active {
-  background: var(--accent-soft);
   color: var(--text-primary);
+  font-weight: 600;
 }
 
 .admin-main {
@@ -165,7 +173,7 @@
   transform: none;
 }
 
-/* 移动端底部 dock（圆角悬浮液态玻璃）：复用访客 dock 视觉 */
+/* 移动端底部 dock（液态玻璃）：复用访客 dock 视觉 */
 .admin-dock {
   position: fixed;
   left: 50%;
@@ -176,11 +184,17 @@
   gap: 4px;
   padding: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.14);
+  /* 液态玻璃：静态高光带 + 底部暖金晕染（与访客 dock 一致） */
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 32%, transparent 55%),
+    radial-gradient(150% 190% at 88% 118%, var(--glow-warm) 0%, transparent 55%),
+    color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  backdrop-filter: blur(36px) saturate(180%);
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow:
+    0 1px 0 var(--glow-top) inset,
+    0 10px 40px rgba(0, 0, 0, 0.16);
 }
 .admin-dock .admin-nav-item {
   flex-direction: column;
@@ -188,6 +202,24 @@
   min-width: 60px;
   padding: 6px 8px;
   font-size: var(--fs-xs);
+}
+.admin-dock .admin-nav-item.is-active {
+  background: transparent;
+  font-weight: 600;
+}
+.admin-dock .admin-nav-item:hover {
+  background: transparent;
+}
+.admin-dock .admin-nav-item:active {
+  transform: scale(0.94);
+}
+/* admin dock 的滑动指示器：复用 dock-indicator 视觉，定位到 active tab */
+.admin-dock .dock-indicator {
+  top: 6px;
+  bottom: 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: 0 1px 0 var(--glow-top) inset;
 }
 @media (min-width: 768px) {
   .admin-dock {

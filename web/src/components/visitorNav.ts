@@ -3,10 +3,11 @@ import { icon } from './icons'
 import { state, rememberGroup } from '../state'
 import { navigate } from '../router'
 import { openModal } from './modal'
+import { withDockIndicator } from './dockIndicator'
 import { api } from '../api/client'
 import type { VisitorView } from './viewToggle'
 
-// 访客导航：移动端底部悬浮 dock（相册/时间线/地图）、顶栏分组品牌切换（圆忆·xxx▾）、
+// 访客导航：移动端底部悬浮 dock（液态玻璃，含滑动指示器）、顶栏分组品牌切换（圆忆·xxx▾）、
 // 首页/彻底退出按钮。三页共用，保证顶栏视觉一致。
 
 export interface VisitorNavCtx {
@@ -14,7 +15,7 @@ export interface VisitorNavCtx {
   albumsHref?: string
 }
 
-// 移动端底部悬浮 dock（圆角液态玻璃）。
+// 移动端底部悬浮 dock（液态玻璃 + 滑动指示器）。
 export function visitorDock(current: VisitorView, ctx: VisitorNavCtx = {}): HTMLElement {
   const item = (view: VisitorView, label: string, iconName: string, opts?: { disabled?: boolean; onClick?: () => void }) =>
     h(
@@ -23,16 +24,21 @@ export function visitorDock(current: VisitorView, ctx: VisitorNavCtx = {}): HTML
         class: 'dock-item' + (current === view ? ' is-active' : ''),
         type: 'button',
         disabled: opts?.disabled ? 'disabled' : undefined,
+        dataset: { tab: view },
         onClick: opts?.onClick,
         title: opts?.disabled ? '地图视图开发中' : undefined,
       },
       [icon(iconName, 20), h('span', {}, label)],
     )
-  return h('nav', { class: 'visitor-dock', 'aria-label': '底部导航' }, [
+  const nav = h('nav', { class: 'visitor-dock', 'aria-label': '底部导航' }, [
     item('albums', '相册', 'grid', { onClick: () => navigate(ctx.albumsHref ?? '/albums') }),
     item('timeline', '时间线', 'list', { onClick: () => navigate(timelineHref()) }),
     item('map', '地图', 'pin', { disabled: true }),
   ])
+  return withDockIndicator(nav, 'visitor-dock', current, '.dock-item', (indicator, el) => {
+    indicator.style.width = `${el.offsetWidth}px`
+    indicator.style.transform = `translateX(${el.offsetLeft}px)`
+  })
 }
 
 // 时间线带来源参数：让返回按钮/「相册」tab 能回到来源页（如某个相册的照片页）。

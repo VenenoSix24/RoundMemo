@@ -5,6 +5,9 @@
   background:
     radial-gradient(88% 44% at 50% -2%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--accent) 3%, var(--bg-base)), var(--bg-base) 30%);
+}
+/* 入场动画只作用于内容区：顶栏 sticky 不参与，避免切 tab 时顶栏跟着上浮跳一下 */
+.page > main {
   animation: page-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes page-in {
@@ -67,8 +70,9 @@
   color: var(--accent);
 }
 
-/* —— 网格/时间线 视图切换（分段控件）—— */
+/* —— 网格/时间线 视图切换（分段控件 + 滑动指示器）—— */
 .view-seg {
+  position: relative;
   display: inline-flex;
   gap: 2px;
   padding: 2px;
@@ -76,7 +80,16 @@
   background: var(--bg-glass);
   border: 1px solid var(--border);
 }
+.view-seg .dock-indicator {
+  top: 2px;
+  bottom: 2px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: 0 1px 0 var(--glow-top) inset;
+}
 .view-seg-btn {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -86,7 +99,7 @@
   font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--text-secondary);
-  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+  transition: color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
 }
 .view-seg-btn:active {
   transform: scale(0.95);
@@ -95,8 +108,8 @@
   color: var(--text-primary);
 }
 .view-seg-btn.is-active {
-  background: var(--accent-soft);
   color: var(--text-primary);
+  font-weight: 600;
 }
 
 /* —— 彻底退出（危险色）—— */
@@ -170,7 +183,7 @@
   transform: translateX(-50%);
 }
 
-/* —— 移动端底部悬浮 dock（圆角液态玻璃）：相册/时间线/地图 —— */
+/* —— 移动端底部悬浮 dock（液态玻璃）：相册/时间线/地图 —— */
 .visitor-dock {
   position: fixed;
   left: 50%;
@@ -181,13 +194,35 @@
   gap: 4px;
   padding: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-elevated) 84%, transparent);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.14);
+  /* 液态玻璃：静态高光带（左上斜向反光，非动画）+ 底部暖金晕染（玻璃厚度感） */
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.08) 32%, transparent 55%),
+    radial-gradient(150% 190% at 88% 118%, var(--glow-warm) 0%, transparent 55%),
+    color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  backdrop-filter: blur(36px) saturate(180%);
+  -webkit-backdrop-filter: blur(36px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow:
+    0 1px 0 var(--glow-top) inset,
+    0 10px 40px rgba(0, 0, 0, 0.16);
+}
+/* 滑动指示器：浮在液态玻璃上的暖金胶囊，跟随 active tab 平移 */
+.dock-indicator {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  z-index: 0;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  box-shadow: 0 1px 0 var(--glow-top) inset;
+  will-change: transform;
+  transition: transform 280ms var(--ease-out);
+  pointer-events: none;
 }
 .dock-item {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -198,14 +233,14 @@
   border-radius: 999px;
   font-size: var(--fs-xs);
   color: var(--text-secondary);
-  transition: background var(--dur-fast) ease-out, color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
+  transition: color var(--dur-fast) ease-out, transform var(--dur-fast) ease-out;
 }
 .dock-item:active {
   transform: scale(0.94);
 }
 .dock-item.is-active {
   color: var(--text-primary);
-  background: var(--accent-soft);
+  font-weight: 600;
 }
 .dock-item:disabled {
   opacity: 0.45;

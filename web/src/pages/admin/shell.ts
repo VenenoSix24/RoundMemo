@@ -1,6 +1,7 @@
 import { adminApi } from '../../api/admin'
 import { h, renderPage } from '../../components/dom'
 import { icon } from '../../components/icons'
+import { withDockIndicator } from '../../components/dockIndicator'
 import { navigate } from '../../router'
 
 // Owner 后台壳：顶栏（品牌 + 居中 tab + 身份/退出）；桌面 tab 在顶栏，手机 tab 沉底 dock。
@@ -29,12 +30,32 @@ export async function renderAdminShell(active: AdminTab, build: (main: HTMLEleme
     h('button', {
       class: 'admin-nav-item' + (t.id === active ? ' is-active' : ''),
       type: 'button',
+      dataset: { tab: t.id },
       onClick: () => navigate(`/admin/${t.id}`),
     }, [icon(t.icon, 18), h('span', {}, t.label)])
 
-  // 桌面顶栏居中 tab + 移动端底部 dock 各渲染一份，CSS 按断点显隐
-  const topNav = h('nav', { class: 'admin-nav', 'aria-label': '后台导航' }, TABS.map(tabBtn))
-  const dock = h('nav', { class: 'admin-dock', 'aria-label': '后台导航' }, TABS.map(tabBtn))
+  // 桌面顶栏居中 tab + 移动端底部 dock 各渲染一份，CSS 按断点显隐；
+  // 两者都带滑动指示器，用不同命名空间避免抢占 FLIP 记忆
+  const topNav = withDockIndicator(
+    h('nav', { class: 'admin-nav', 'aria-label': '后台导航' }, TABS.map(tabBtn)),
+    'admin-nav',
+    active,
+    '.admin-nav-item',
+    (indicator, el) => {
+      indicator.style.width = `${el.offsetWidth}px`
+      indicator.style.transform = `translateX(${el.offsetLeft}px)`
+    },
+  )
+  const dock = withDockIndicator(
+    h('nav', { class: 'admin-dock', 'aria-label': '后台导航' }, TABS.map(tabBtn)),
+    'admin-dock',
+    active,
+    '.admin-nav-item',
+    (indicator, el) => {
+      indicator.style.width = `${el.offsetWidth}px`
+      indicator.style.transform = `translateX(${el.offsetLeft}px)`
+    },
+  )
 
   const main = h('main', { class: 'admin-main' })
 
