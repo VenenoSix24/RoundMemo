@@ -37,13 +37,14 @@ export function h<K extends keyof HTMLElementTagNameMap>(
   return el
 }
 
-export function mount(root: HTMLElement | null, node: Node): void {
+export function mount(root: HTMLElement | null, node: Node | Node[]): void {
   if (!root) return
-  root.replaceChildren(node)
+  root.replaceChildren(...(Array.isArray(node) ? node : [node]))
 }
 
-// 清空并替换 #app 内容。
-export function renderPage(node: Node): void {
+// 清空并替换 #app 内容。传数组时多个节点平级挂载——访客 dock 借此脱离 .page，
+// 避免 .page 的入场动画 transform 把 position:fixed 的 dock 变成相对 .page 定位。
+export function renderPage(node: Node | Node[]): void {
   const app = document.getElementById('app')
   mount(app, node)
 }

@@ -5,6 +5,7 @@ import * as THREE from 'three'
 // 默认朝向偏移：用户反馈每张照片进入后的默认视角偏右 90°，
 // 正确正面应在当前默认（yaw=0）基础上向左转 90°。若方向反了改负号。
 const DEFAULT_YAW = Math.PI / 2
+const DEFAULT_FOV = 75
 
 export class PanoramaViewer {
   private renderer: THREE.WebGLRenderer
@@ -133,7 +134,7 @@ export class PanoramaViewer {
     this.animateViewTo(DEFAULT_YAW, 0)
   }
 
-  // 视角补间：从当前 yaw/pitch 缓动到目标（重置朝向用），任意拖动立即中断。
+  // 视角补间：从当前 yaw/pitch/fov 缓动到目标（重置朝向用），任意拖动立即中断。
   private animateViewTo(targetYaw: number, targetPitch: number): void {
     if (this.resetting) {
       cancelAnimationFrame(this.resetRaf)
@@ -141,6 +142,7 @@ export class PanoramaViewer {
     }
     const fromYaw = this.yaw
     const fromPitch = this.pitch
+    const fromFov = this.camera.fov
     // yaw 可越界环绕：取最短转向角，避免拉回时绕大圈
     let dYaw = targetYaw - fromYaw
     dYaw = ((dYaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI
@@ -152,6 +154,8 @@ export class PanoramaViewer {
       const e = 1 - Math.pow(1 - t, 3) // ease-out cubic
       this.yaw = fromYaw + dYaw * e
       this.pitch = fromPitch + (targetPitch - fromPitch) * e
+      this.camera.fov = fromFov + (DEFAULT_FOV - fromFov) * e
+      this.camera.updateProjectionMatrix()
       this.applyManualView()
       this.dirty = true // 关键：补间每帧标记脏，主循环才持续重绘
       if (t < 1 && this.resetting) this.resetRaf = requestAnimationFrame(step)

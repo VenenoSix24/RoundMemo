@@ -34,9 +34,9 @@ export async function renderAlbum(albumIdStr: string): Promise<void> {
       h('div', { class: 'topbar-right' }, [...homeExitButtons()]),
     ]),
     h('main', { class: 'photo-grid' }, photos.length ? photos.map((p, i) => photoCard(p, album.id, i)) : [emptyState()]),
-    visitorDock('albums', { albumsHref: albumHref }),
   ])
-  renderPage(page)
+  // dock 与 .page 平级：脱离 page 入场动画的 transform 包含块，position:fixed 才相对视口
+  renderPage([page, visitorDock('albums', { albumsHref: albumHref })])
   setTeardown(wireReveal(page))
 }
 
