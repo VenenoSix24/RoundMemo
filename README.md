@@ -1,160 +1,218 @@
-# RoundMemo
+![圆忆 RoundMemo](.github/assets/cover.png)
 
-**A private, self-hostable online 360° photo memorial album.**
+# 圆忆 RoundMemo
 
-Import photos taken with a 360 camera, organize them into albums and groups,
-and share them with family and friends via a link and a numeric code — so they
-can relive those moments in the panorama viewer or on a map of where the photos
-were taken.
+一个用于整理和分享 360° 全景照片的自托管相册。
 
-[English](README.md) | [简体中文](README.zh.md)
+照片可以先上传到照片池，再整理到不同相册和分组中。分组可以生成分享链接和数字口令，家人或朋友无需登录即可查看。支持全景查看器、拍摄地点地图、备份恢复等功能。
 
-![CI](https://github.com/VenenoSix24/RoundMemo/actions/workflows/ci.yml/badge.svg)
-![Version](https://img.shields.io/badge/version-v1.0.0-8b5cf6)
+[English](README.en.md) | [简体中文](README.md)
+
+[![CI](https://img.shields.io/github/actions/workflow/status/VenenoSix24/RoundMemo/ci.yml?label=CI)](https://github.com/VenenoSix24/RoundMemo/actions/workflows/ci.yml)
+![Version](https://img.shields.io/badge/version-v1.2.0-8b5cf6)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
 
----
+## 特性
 
-## Features
+- **照片池**：照片统一存放在照片池中，可以添加到多个相册；从相册移除不会删除原图
+- **相册与分组**：相册可以绑定到分组，分组通过分享链接 + 数字口令访问
+- **分享控制**：支持开关分享、设置有效期、访问次数上限，以及让指定设备下线
+- **全景查看器**：支持 equirectangular 全景照片，提供拖拽、滚轮、捏合和手机陀螺仪控制
+- **查看器效果**：支持自动旋转和小行星开场动画，打开照片时可以从小行星视角展开到全景
+- **照片信息**：按拍摄时间倒序排列，显示拍摄时间和地点；标题、描述和地点名称会显示在查看器中
+- **地图**：根据照片 GPS 位置生成地图标记并自动聚类，支持高德地图、OpenStreetMap 和自定义瓦片源
+- **备份恢复**：支持生成单文件 `.rmbackup` 备份，也提供系统层全量备份脚本
+- **自托管**：后端为单个 Go 二进制，配合 systemd 和 Caddy 部署
 
-- **Photo pool** — upload photos into a pool, then pick them into any number of
-  albums; removing from an album never deletes the original
-- **Groups & grants** — albums are bound into groups; each group gets a share
-  link plus a numeric code, with per-grant enable/switch, expiry, usage cap and
-  revocation
-- **Panorama viewer** — equirectangular rendering with drag, wheel zoom, pinch,
-  and gyroscope control
-- **Map view** — GPS-clustered map with configurable tile source
-  (AMap / OpenStreetMap / custom) and automatic coordinate conversion
-- **Backup & restore** — a one-file `.rmbackup` archive with a consistent DB
-  snapshot, plus a system-level full backup script
-- **Self-hosted** — a single Go binary, served behind Caddy with automatic HTTPS
+## 界面预览
 
-## Tech Stack
+<table>
+  <tr>
+    <td><img src=".github/assets/user-1.png" alt="访客端相册" /></td>
+    <td><img src=".github/assets/user-2.png" alt="访客端全景查看器" /></td>
+  </tr>
+  <tr>
+    <td align="center">访客端 · 相册列表</td>
+    <td align="center">访客端 · 全景查看</td>
+  </tr>
+  <tr>
+    <td><img src=".github/assets/admin-1.png" alt="管理端照片池" /></td>
+    <td><img src=".github/assets/admin-2.png" alt="管理端设置" /></td>
+  </tr>
+  <tr>
+    <td align="center">管理端 · 照片池</td>
+    <td align="center">管理端 · 分享页</td>
+  </tr>
+</table>
 
-- **Backend** — Go, chi router, SQLite via modernc (pure Go, no CGO)
-- **Frontend** — Vite, TypeScript, Three.js, Leaflet
-- **Deployment** — systemd + Caddy
 
-## Quick Start (local development)
+## 技术栈
 
-Requirements: Go ≥ 1.26, Node.js ≥ 20.
+- **后端**：Go、chi、SQLite
+- **数据库**：SQLite，使用 modernc，无 CGO 依赖
+- **前端**：Vite、TypeScript、Three.js、Leaflet
+- **部署**：systemd + Caddy
+
+## 本地开发
+
+依赖：
+
+- Go ≥ 1.26
+- Node.js ≥ 20
+
+### 后端
+
+在 `server/` 目录中运行：
 
 ```bash
-# 1. Backend (run from server/): copy the config template, start the server
 cp ../config.example.toml ../config.toml
 go run ./cmd/roundmemo -config ../config.toml
-
-# 2. Frontend dev server
-cd web && npm ci && npm run dev
 ```
 
-`storage.data_dir` is resolved relative to the working directory — if you run
-the server from elsewhere, point `data_dir` at an absolute path in `config.toml`.
-
-For local `http://127.0.0.1` debugging, set `secure_cookies = false` in
-`config.toml` (the browser rejects Secure cookies over plain HTTP).
-
-Create the owner account the first time (run from `server/`):
+### 前端
 
 ```bash
-go run ./cmd/roundmemo -config ../config.toml owner create <username>
+cd web
+npm ci
+npm run dev
 ```
 
-## Deployment
+`storage.data_dir` 默认相对于当前工作目录解析。如果从其他目录启动服务，请在 `config.toml` 中使用绝对路径。
 
-The deploy kit installs on a 1H1G VPS:
+本地使用 `http://127.0.0.1` 调试时，将：
+
+```toml
+secure_cookies = false
+```
+
+否则浏览器会拒绝 HTTP 下的 Secure Cookie。
+
+### 创建 Owner
+
+首次使用时，在 `server/` 目录运行：
+
+```bash
+go run ./cmd/roundmemo -config ../config.toml owner create <用户名>
+```
+
+## 部署
+
+项目提供安装脚本，可以在轻量 VPS 上完成部署：
 
 ```bash
 sudo bash deploy/install.sh --domain pano.example.com
 ```
 
-The script walks you through the steps (or use flags to pre-fill them):
+安装脚本会引导配置，也可以通过参数跳过部分交互。
 
-| Flag | Meaning |
-|---|---|
-| `--domain <domain>` | Public domain; also sets `public_base_url` to `https://<domain>` |
-| `--data-dir <path>` | Data directory (default `/opt/roundmemo/data`) |
-| `--listen <addr>` | Listen address (default `127.0.0.1:8787`, proxied by Caddy) |
-| `--no-caddy` | Install binary + systemd only, skip Caddy |
-| `--dry-run` | Print every write operation without touching the system |
-| `--yes` | Skip all interactive prompts (use with the flags above) |
+| 参数 | 说明 |
+| --- | --- |
+| `--domain <域>` | 对外域名，同时设置 `public_base_url` |
+| `--data-dir <路径>` | 数据目录，默认 `/opt/roundmemo/data` |
+| `--listen <地址>` | 服务监听地址，默认 `127.0.0.1:8787` |
+| `--no-caddy` | 只安装二进制和 systemd，跳过 Caddy |
+| `--dry-run` | 只显示将执行的操作，不修改系统 |
+| `--yes` | 跳过交互确认，需要同时提供必要参数 |
 
-What it does:
+安装过程：
 
-1. Builds the backend binary (version injected via `ldflags`) and the frontend `dist`
-2. Installs to `/opt/roundmemo/`, creates a `roundmemo` system user
-3. Generates `config.toml` only on first install — an existing config is never
-   overwritten; re-running runs an upgrade that updates only the binary, `dist`
-   and the unit file (the previous binary and dist are each kept as one `.bak`)
-4. Installs the systemd unit and starts the service
-5. Writes your domain into the Caddy site config (automatic HTTPS via Let's Encrypt)
+1. 编译后端二进制和前端 `dist`
+2. 安装到 `/opt/roundmemo/`
+3. 创建 `roundmemo` 系统用户
+4. 首次安装时生成 `config.toml`
+5. 安装 systemd unit 并启动服务
+6. 配置 Caddy，并通过 Let's Encrypt 自动申请 HTTPS
 
-Then create the owner account on the server:
+如果重新运行安装脚本：
+
+- 已存在的 `config.toml` 不会被覆盖
+- 进入升级流程
+- 更新二进制、前端 `dist` 和 systemd unit
+- 旧二进制和 `dist` 各保留一份 `.bak`
+
+创建 Owner：
 
 ```bash
-sudo -u roundmemo /opt/roundmemo/roundmemo owner create <username>
+sudo -u roundmemo /opt/roundmemo/roundmemo owner create <用户名>
 ```
 
-The script does **not** auto-install Go, Node or Caddy — it prints the install
-command for whatever is missing and exits, so it never installs anything else
-in the background.
+安装脚本不会自动安装 Go、Node.js 或 Caddy。如果缺少依赖，会显示对应的安装命令并退出。
 
-## Backup & Restore
+## 备份与恢复
 
-- **System-level** (`deploy/backup.sh`) — a full backup: a consistent SQLite
-  snapshot taken via `.backup`, plus originals, thumbnails and the
-  image-signing key, packed into a timestamped archive.
+### 系统备份
 
-  ```bash
-  bash deploy/backup.sh --dest /var/backups/roundmemo --keep 7
-  ```
+`deploy/backup.sh` 会创建完整备份，包括：
 
-  Add a cron entry to run it daily; rsync the archives off-machine for off-site
-  redundancy.
+- SQLite 一致性快照
+- 原图
+- 缩略图
+- 图片签名密钥
 
-- **In-app** — the Owner admin "Backup" page creates a single `.rmbackup`
-  archive that can be downloaded and restored from the UI, including on a fresh
-  machine.
+例如：
 
-## Configuration
+```bash
+bash deploy/backup.sh --dest /var/backups/roundmemo --keep 7
+```
 
-| Key | Meaning |
-|---|---|
-| `server.listen` | Listen address; Caddy proxies here |
-| `server.public_base_url` | Public base URL used to generate share links |
-| `server.secure_cookies` | Must be `true` under HTTPS, `false` for local `http://` |
-| `storage.data_dir` | Runtime data root (originals, thumbnails, database) |
-| `security.code_rate_per_hour` | Numeric-code attempt rate limit per IP per hour |
-| `security.session_ttl_days` | Visitor session lifetime (days) |
-| `security.admin_session_ttl_days` | Owner session lifetime (days) |
-| `security.img_sig_ttl_seconds` | Image-distribution signature lifetime (seconds) |
+可以配合 cron 定期运行，并将备份同步到其他服务器保存。
 
-## Roadmap
+### 应用内备份
 
-**Shipped in v1.0.0** — photo pool, groups & grants, panorama viewer,
-map view, backup/restore, admin UI, liquid-glass interface.
+Owner 后台的「备份恢复」页面可以生成 `.rmbackup` 文件。
 
-**Up next**
+备份可以直接下载，也可以在另一台机器上恢复，用于迁移整个 RoundMemo 实例。
 
-- S3-compatible object storage
-- Gyroscope polish
-- Desktop / mobile evaluation
+## 配置
 
-**Longer term**
+主要配置位于 `config.toml`。
 
-- Static file encryption
-- High-resolution tiled LOD for the viewer
-- Multi-instance deployment
+| 配置项 | 说明 |
+| --- | --- |
+| `server.listen` | 服务监听地址，Caddy 默认反代到这里 |
+| `server.public_base_url` | 对外访问地址，用于生成分享链接 |
+| `server.secure_cookies` | HTTPS 环境设为 `true`；本地 HTTP 调试设为 `false` |
+| `storage.data_dir` | 数据目录，包含原图、缩略图和数据库 |
+| `security.code_rate_per_hour` | 数字口令尝试限制，每个 IP 每小时允许的次数 |
+| `security.session_ttl_days` | 访客会话有效期 |
+| `security.admin_session_ttl_days` | Owner 会话有效期 |
+| `security.img_sig_ttl_seconds` | 图片签名有效期 |
 
-## Engineering
+## 路线图
 
-- Conventional Commits, GitHub Flow
-- CI runs `gofmt`, `go vet`, `go test`, `go build`, and a frontend type-check +
-  Vite build
+### v1.2.0
+
+已实现：
+
+- 照片池
+- 相册和分组授权
+- 全景查看器
+- 地图视图
+- 备份恢复
+- 后台管理
+- 液态玻璃界面
+- 陀螺仪控制
+- 自动旋转
+- 小行星开场动画
+
+### 规划中
+
+- S3 兼容对象存储
+- 桌面端 / 移动端
+
+### 长期
+
+- 静态文件加密
+- 查看器高分辨率分块 LOD
+- 多实例部署
+
+## 工程规范
+
+- Conventional Commits
+- GitHub Flow
+- CI 检查 `gofmt`、`go vet`、`go test`、`go build`
+- 前端进行 TypeScript 类型检查和 Vite 构建
 
 ## License
 
-[AGPL-3.0](LICENSE) — a strong copyleft license: if you run RoundMemo as a
-service, modifications you make to it must be made available under the same
-license.
+RoundMemo 使用 [AGPL-3.0](LICENSE)。
