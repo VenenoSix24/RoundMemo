@@ -1,6 +1,9 @@
 /// <reference types="leaflet.markercluster" />
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+// 聚类动画的必需配套样式：蛛线收展的 0.3s 过渡由它驱动，缺失会导致
+// 收起时蛛线滞留片刻才消失。Default.css 是官方默认皮肤，自定义 clusterIcon 不引入。
+import 'leaflet.markercluster/dist/MarkerCluster.css'
 import markerclusterUrl from 'leaflet.markercluster/dist/leaflet.markercluster.js?url'
 import { api, imgUrl, type MapTileConfig, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
