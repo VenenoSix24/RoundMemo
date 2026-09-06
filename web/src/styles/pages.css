@@ -386,8 +386,11 @@
   position: absolute;
   left: 8px;
   bottom: 8px;
-  padding: 4px 10px;
-  font-size: var(--fs-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: #1a1610;
   background: rgba(255, 255, 255, 0.5);
@@ -396,6 +399,18 @@
   border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow: 0 1px 6px rgba(60, 45, 15, 0.12);
   text-shadow: none;
+}
+
+/* 覆盖项须在 .photo-badge 之后，否则 left/bottom 被基类回填导致标签被拉宽 */
+.photo-badge-loc {
+  left: auto;
+  right: 8px;
+  bottom: auto;
+  top: 8px;
+  max-width: 62%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .photo-caption {

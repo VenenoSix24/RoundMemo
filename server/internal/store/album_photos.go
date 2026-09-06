@@ -35,13 +35,13 @@ func RemovePhotoFromAlbum(db *sql.DB, albumID, photoID int64) error {
 	return requireAffected(res)
 }
 
-// ListAlbumPhotos 相册内照片，按拍摄时间升序（无时间按导入时间兜底）。
+// ListAlbumPhotos 相册内照片，按拍摄时间降序，最新在前（无时间按导入时间兜底）。
 func ListAlbumPhotos(db *sql.DB, albumID int64) ([]Photo, error) {
 	rows, err := db.Query(`
 		SELECT `+photoCols+`
 		FROM album_photos ap JOIN photos p ON p.id = ap.photo_id
 		WHERE ap.album_id=?
-		ORDER BY COALESCE(p.shot_at, p.created_at), p.id`, albumID)
+		ORDER BY COALESCE(p.shot_at, p.created_at) DESC, p.id DESC`, albumID)
 	if err != nil {
 		return nil, err
 	}

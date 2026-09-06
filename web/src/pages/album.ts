@@ -42,6 +42,7 @@ export async function renderAlbum(albumIdStr: string): Promise<void> {
 
 function photoCard(p: Photo, albumId: number, i: number): HTMLElement {
   const badge = p.shot_at ? fmtDate(p.shot_at) : null
+  const locBadge = p.location_name
   const title = photoDisplayTitle(p.title, p.filename)
   return h(
     'figure',
@@ -59,7 +60,8 @@ function photoCard(p: Photo, albumId: number, i: number): HTMLElement {
     [
       h('div', { class: 'photo-frame' }, [
         h('img', { class: 'photo-thumb', src: imgUrl('thumb1024', p.sha256), alt: title, loading: 'lazy' }),
-        badge ? h('span', { class: 'photo-badge glass-compact' }, badge) : null,
+        badge ? h('span', { class: 'photo-badge glass-compact' }, [icon('clock', 12), badge]) : null,
+        locBadge ? h('span', { class: 'photo-badge photo-badge-loc glass-compact' }, [icon('pin', 12), locBadge]) : null,
       ]),
       h('figcaption', { class: 'photo-caption' }, title),
     ],
