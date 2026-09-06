@@ -5,6 +5,29 @@ All notable changes to RoundMemo are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-06
+
+### Added
+
+- Viewer behavior site settings in the admin panel: auto rotate and
+  planet intro toggles, delivered to visitors via the public settings API
+- Auto rotate: slow yaw rotation after a photo loads (about 40s per turn),
+  pauses while the visitor interacts, yields to the gyroscope
+- Planet intro: each photo opens from a nadir "little planet" view and
+  eases into the default view as the loading overlay fades out
+- Photo description shown in the viewer info panel, between location and device
+- Location badge on album photo cards (top-right, with pin icon); the date
+  badge gains a clock icon, both badges sized down
+
+### Changed
+
+- Album photos are listed newest first (shot time, falling back to import time)
+
+### Fixed
+
+- Map cluster spider legs lingered after collapsing: the required
+  MarkerCluster.css was not imported
+
 ## [1.1.0] - 2026-09-06
 
 ### Added
