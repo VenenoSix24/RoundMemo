@@ -171,7 +171,12 @@ export const adminApi = {
   deletePhoto: (id: number) => adminReq<void>(`/api/admin/photos/${id}`, { method: 'DELETE' }),
 
   // 站点设置
-  settings: () => adminReq<{ site_title: string; has_favicon: boolean; map_tile: MapTileConfig }>('/api/settings'),
+  settings: () => adminReq<{ site_title: string; has_favicon: boolean; map_tile: MapTileConfig; viewer_auto_rotate: boolean; viewer_planet_intro: boolean }>('/api/settings'),
+  putViewerSettings: (autoRotate: boolean, planetIntro: boolean) =>
+    adminReq<{ viewer_auto_rotate: boolean; viewer_planet_intro: boolean }>('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ viewer_auto_rotate: autoRotate, viewer_planet_intro: planetIntro }),
+    }),
   putSettings: (siteTitle: string) =>
     adminReq<{ site_title: string; has_favicon: boolean; map_tile: MapTileConfig }>('/api/admin/settings', {
       method: 'PUT',

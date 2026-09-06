@@ -5,6 +5,14 @@ import * as THREE from 'three'
 // 默认朝向偏移：正确正面应在当前默认（yaw=0）基础上向左转 90°。
 const DEFAULT_YAW = Math.PI / 2
 const DEFAULT_FOV = 75
+const PLANET_FOV = 150
+const PLANET_PITCH = -Math.PI / 2 + 0.01
+// 自动旋转角速度：约 40 秒一圈，缓慢优雅
+const ROTATE_SPEED = (Math.PI * 2) / 40
+// 开场动画时长：小行星视角展开到默认视角
+const INTRO_MS = 1600
+// 自动旋转前的静默时长：交互后停 2.5s 再恢复
+const ROTATE_IDLE_MS = 2500
 
 // W3C 标准四元数换算用的常量：设备坐标系 → 相机坐标系
 const GYRO_ZEE = new THREE.Vector3(0, 0, 1)
@@ -24,6 +32,12 @@ export class PanoramaViewer {
   private rafId = 0
   private gyroOn = false
   private dirty = true
+
+  // 自动旋转与小行星开场：由管理员站点设置驱动（公共 /api/settings 传入）
+  private autoRotate: boolean
+  private planetIntro: boolean
+  private lastInteract = 0
+  private lastFrame = performance.now()
 
   // 手动视角状态（陀螺仪关闭时生效）
   private yaw = DEFAULT_YAW
@@ -58,7 +72,13 @@ export class PanoramaViewer {
 
   private resizeObserver: ResizeObserver
 
-  constructor(private container: HTMLElement, private canvas: HTMLCanvasElement) {
+  constructor(
+    private container: HTMLElement,
+    private canvas: HTMLCanvasElement,
+    opts: { autoRotate?: boolean; planetIntro?: boolean } = {},
+  ) {
+    this.autoRotate = opts.autoRotate ?? false
+    this.planetIntro = opts.planetIntro ?? false
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
@@ -84,6 +104,12 @@ export class PanoramaViewer {
 
   // —— 纹理加载 ——
   // 是否已缓存该纹理：切换前据此决定是否显示加载提示。
+  // 小行星开场第二步：从星球视角展开到默认视角。陀螺仪开启时不播。
+  playIntro(): void {
+    if (!this.planetIntro || this.gyroOn) return
+    this.animateViewTo(DEFAULT_YAW, 0, DEFAULT_FOV, INTRO_MS)
+  }
+
   isLoaded(sha: string): boolean {
     return this.textureCache.has(`/img/raw/${sha}`)
   }
@@ -190,15 +216,25 @@ export class PanoramaViewer {
       this.resetting = false
     }
     this.yaw = DEFAULT_YAW
-    this.pitch = 0
     this.camera.fov = DEFAULT_FOV
     this.camera.updateProjectionMatrix()
+    if (this.planetIntro) {
+      // 小行星开场第一步：先停在星球视角，此刻仍被加载遮罩盖住，
+      // 待页面在遮罩散开时调 playIntro() 再展开，避免动画被遮罩吃掉
+      this.pitch = PLANET_PITCH
+      this.camera.fov = PLANET_FOV
+      this.camera.updateProjectionMatrix()
+      this.applyManualView()
+      this.dirty = true
+      return
+    }
+    this.pitch = 0
     this.applyManualView()
     this.dirty = true
   }
 
   // 视角补间：从当前 yaw/pitch/fov 缓动到目标，任意拖动立即中断。
-  private animateViewTo(targetYaw: number, targetPitch: number): void {
+  private animateViewTo(targetYaw: number, targetPitch: number, targetFov: number = DEFAULT_FOV, dur = 450): void {
     if (this.resetting) {
       cancelAnimationFrame(this.resetRaf)
       this.resetting = false
@@ -210,14 +246,13 @@ export class PanoramaViewer {
     let dYaw = targetYaw - fromYaw
     dYaw = ((dYaw + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI
     const start = performance.now()
-    const dur = 450
     this.resetting = true
     const step = () => {
       const t = Math.min(1, (performance.now() - start) / dur)
       const e = 1 - Math.pow(1 - t, 3) // ease-out cubic
       this.yaw = fromYaw + dYaw * e
       this.pitch = fromPitch + (targetPitch - fromPitch) * e
-      this.camera.fov = fromFov + (DEFAULT_FOV - fromFov) * e
+      this.camera.fov = fromFov + (targetFov - fromFov) * e
       this.camera.updateProjectionMatrix()
       this.applyManualView()
       this.dirty = true
@@ -232,6 +267,8 @@ export class PanoramaViewer {
     this.camera.updateProjectionMatrix()
     this.dirty = true
   }
+
+
 
   // 陀螺仪开关；iOS 13+ 需用户手势授权。开启后若收不到传感器事件
   // （桌面浏览器有构造器无传感器）自动回退触摸并报失败。
@@ -340,7 +377,12 @@ export class PanoramaViewer {
     step()
   }
 
+  private markInteract(): void {
+    this.lastInteract = performance.now()
+  }
+
   private onPointerDown = (e: PointerEvent): void => {
+    this.markInteract()
     if (this.resetting) {
       cancelAnimationFrame(this.resetRaf)
       this.resetting = false
@@ -366,6 +408,7 @@ export class PanoramaViewer {
     p.x = e.clientX
     p.y = e.clientY
     if (this.pointers.size === 2) {
+      this.markInteract()
       const [a, b] = [...this.pointers.values()]
       const d = Math.hypot(a.x - b.x, a.y - b.y)
       if (this.pinchDist > 0) this.setFov(this.camera.fov - (d - this.pinchDist) * 0.16)
@@ -393,6 +436,7 @@ export class PanoramaViewer {
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault()
+    this.markInteract()
     this.setFov(this.camera.fov + (e.deltaY > 0 ? 6 : -6))
   }
 
@@ -437,10 +481,20 @@ export class PanoramaViewer {
 
   private loop = (): void => {
     this.rafId = requestAnimationFrame(this.loop)
+    const now = performance.now()
+    const dt = (now - this.lastFrame) / 1000
+    this.lastFrame = now
     // 陀螺仪平滑放在渲染循环里逐帧追赶目标朝向：跟手且不受事件频率抖动影响
     if (this.gyroOn && !this.deviceQuat.equals(this.targetQuat)) {
       this.deviceQuat.slerp(this.targetQuat, 0.4)
       this.applyGyroView()
+      this.dirty = true
+    }
+    // 自动旋转：交互静默后恢复，陀螺仪开启时让位
+    if (this.autoRotate && !this.gyroOn && !this.dragging && !this.resetting &&
+        now - this.lastInteract > ROTATE_IDLE_MS) {
+      this.yaw += dt * ROTATE_SPEED
+      this.applyManualView()
       this.dirty = true
     }
     if (this.dirty) {
