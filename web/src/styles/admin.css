@@ -337,6 +337,26 @@
   height: 18px;
   accent-color: var(--accent);
 }
+.viewer-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.viewer-check-box {
+  flex: none;
+  margin-top: 3px;
+}
+.viewer-check-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.viewer-check-desc {
+  font-size: var(--fs-sm);
+}
 
 /* —— 按钮尺寸 —— */
 .btn-sm {
