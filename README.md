@@ -62,12 +62,20 @@
 
 ### 后端
 
-在 `server/` 目录中运行：
+先准备配置文件：把项目根目录下的 `config.example.toml` 复制一份到同目录，命名为 `config.toml`。这个文件就是运行时的配置文件，本地开发一般保持默认即可。
+
+然后在 `server/` 目录中启动服务：
 
 ```bash
-cp ../config.example.toml ../config.toml
 go run ./cmd/roundmemo -config ../config.toml
 ```
+
+启动前可按需修改 `config.toml`，常用的几项：
+
+- `server.listen`：服务监听地址，默认 `127.0.0.1:8787`
+- `server.secure_cookies`：本地 `http://` 调试要设为 `false`
+- `storage.data_dir`：照片、缩略图和数据库的存放目录，默认 `./data`
+- `[security]` 下的几项控制口令限流和各类会话有效期，默认值够用，可以不动
 
 ### 前端
 
