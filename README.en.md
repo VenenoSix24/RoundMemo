@@ -62,12 +62,20 @@ Requirements:
 
 ### Backend
 
-From the `server/` directory:
+First, prepare the configuration: copy `config.example.toml` from the project root to the same directory and rename the copy to `config.toml`. That file is the runtime configuration, and the defaults are fine for local development.
+
+Then start the server from the `server/` directory:
 
 ```bash
-cp ../config.example.toml ../config.toml
 go run ./cmd/roundmemo -config ../config.toml
 ```
+
+Before starting, adjust `config.toml` as needed. The commonly touched keys:
+
+- `server.listen`: listen address, defaults to `127.0.0.1:8787`
+- `server.secure_cookies`: set to `false` for local `http://` debugging
+- `storage.data_dir`: where photos, thumbnails, and the database live, defaults to `./data`
+- The `[security]` keys control passcode rate limiting and session lifetimes; the defaults are sensible, so you can leave them alone
 
 ### Frontend
 
