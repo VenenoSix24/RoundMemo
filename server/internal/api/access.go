@@ -32,6 +32,21 @@ func (s *Server) visitorSession(r *http.Request) *store.Session {
 	return sess
 }
 
+// validAdminSession 判断请求是否携带有效管理会话（/img 对管理员放行用）。
+func (s *Server) validAdminSession(r *http.Request) bool {
+	sid := ""
+	if c, err := r.Cookie(adminCookieName); err == nil {
+		sid = c.Value
+	} else if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+		sid = strings.TrimPrefix(h, "Bearer ")
+	}
+	if sid == "" {
+		return false
+	}
+	_, err := store.GetAdminSession(s.db, sid, time.Now().Unix())
+	return err == nil
+}
+
 // grantValid 校验授权当前是否可用。max_uses 的原子判定在 IncrementGrantUse 里做。
 func grantValid(g *store.Grant, now int64) bool {
 	return g.Enabled && g.RevokedAt == nil &&

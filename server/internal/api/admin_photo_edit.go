@@ -46,6 +46,10 @@ type photoJSON struct {
 }
 
 func toPhotoJSON(p *store.Photo, albumIDs []int64) photoJSON {
+	// 未入任何相册的照片 albumIDs 为 nil，须序列化为 [] 而非 null，避免前端读 length 崩溃。
+	if albumIDs == nil {
+		albumIDs = []int64{}
+	}
 	return photoJSON{
 		ID:           p.ID,
 		AlbumIDs:     albumIDs,

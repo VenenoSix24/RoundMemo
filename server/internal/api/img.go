@@ -46,22 +46,26 @@ func (s *Server) handleImage(w http.ResponseWriter, r *http.Request) {
 		sid = q.Get("sid")
 	}
 	if sid == "" {
-		writeError(w, http.StatusNotFound, "不存在")
-		return
-	}
-	if _, err := store.GetSession(s.db, sid, now); err != nil {
-		writeError(w, http.StatusNotFound, "不存在")
-		return
-	}
-	albumIDs, err := store.AlbumIDsForPhoto(s.db, photo.ID)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "不存在")
-		return
-	}
-	ok, err = store.SessionCoversAnyAlbum(s.db, sid, albumIDs, now)
-	if err != nil || !ok {
-		writeError(w, http.StatusNotFound, "不存在")
-		return
+		// 管理员对本库照片拥有全权，管理端页面直接引用 /img，须放行。
+		if !s.validAdminSession(r) {
+			writeError(w, http.StatusNotFound, "不存在")
+			return
+		}
+	} else {
+		if _, err := store.GetSession(s.db, sid, now); err != nil {
+			writeError(w, http.StatusNotFound, "不存在")
+			return
+		}
+		albumIDs, err := store.AlbumIDsForPhoto(s.db, photo.ID)
+		if err != nil {
+			writeError(w, http.StatusNotFound, "不存在")
+			return
+		}
+		ok, err = store.SessionCoversAnyAlbum(s.db, sid, albumIDs, now)
+		if err != nil || !ok {
+			writeError(w, http.StatusNotFound, "不存在")
+			return
+		}
 	}
 
 	rc, err := s.storage.Get(context.Background(), key)
