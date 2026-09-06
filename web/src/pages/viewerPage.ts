@@ -1,5 +1,6 @@
 import { api, type Photo } from '../api/client'
 import { h, renderPage } from '../components/dom'
+import { toast } from '../components/modal'
 import { icon } from '../components/icons'
 import { photoDisplayTitle } from '../components/viewToggle'
 import { PanoramaViewer } from '../viewer/viewer'
@@ -45,7 +46,9 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
       h('button', { class: 'icon-btn', 'aria-label': '下一张', onClick: () => goTo(index + 1) }, icon('arrow-right')),
     ]),
     h('div', { class: 'viewer-actions' }, [
-      h('button', { class: 'icon-btn gyro-btn', 'aria-label': '开启看景视角', title: '陀螺仪', onClick: onGyro }, icon('compass')),
+      ...(PanoramaViewer.gyroSupported()
+        ? [h('button', { class: 'icon-btn gyro-btn', 'aria-label': '开启看景视角', title: '陀螺仪', onClick: onGyro }, icon('compass'))]
+        : []),
       h('button', { class: 'icon-btn', 'aria-label': '重置朝向', title: '重置', onClick: () => viewer.resetView() }, icon('reset')),
     ]),
   ])
@@ -126,9 +129,11 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   }
 
   async function onGyro(): Promise<void> {
-    const on = await viewer.toggleGyro()
     const btn = pill.querySelector('.gyro-btn')
+    const wasOn = btn?.classList.contains('is-active') ?? false
+    const on = await viewer.toggleGyro()
     if (btn) btn.classList.toggle('is-active', on)
+    if (!on && !wasOn) toast('陀螺仪不可用：权限被拒绝或设备无传感器')
   }
 
   // —— 控件 idle 淡出（仅底部胶囊）——

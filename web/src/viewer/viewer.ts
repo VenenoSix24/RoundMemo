@@ -6,7 +6,17 @@ import * as THREE from 'three'
 const DEFAULT_YAW = Math.PI / 2
 const DEFAULT_FOV = 75
 
+// W3C 标准四元数换算用的常量：设备坐标系 → 相机坐标系
+const GYRO_ZEE = new THREE.Vector3(0, 0, 1)
+const GYRO_Q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)) // 绕 X 轴 -π/2
+
 export class PanoramaViewer {
+  static gyroSupported(): boolean {
+    // 只按接口存在性判断；无传感器的环境由开启后的超时回退兜底，
+    // 避免条件过严导致真机按钮消失。
+    return typeof DeviceOrientationEvent !== 'undefined'
+  }
+
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
   private camera: THREE.PerspectiveCamera
@@ -21,6 +31,19 @@ export class PanoramaViewer {
   private dragging = false
   private lastX = 0
   private lastY = 0
+
+  // 陀螺仪：相机朝向 = 设备四元数 × 归零偏移。设备四元数经轻量滤波去抖，
+  // 偏移在开启瞬间/归零时按当前视角重算，保证无跳变。竖屏、接近直立均稳定。
+  private deviceQuat = new THREE.Quaternion()
+  private targetQuat = new THREE.Quaternion()
+  private gyroOffset = new THREE.Quaternion()
+  private defaultViewQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, DEFAULT_YAW, 0, 'YXZ'))
+  private gyroEuler = new THREE.Euler()
+  private gyroQ0 = new THREE.Quaternion()
+  private needsBaseline = false
+  private firstGyroResolve: (() => void) | null = null
+  private gyroResetting = false
+  private gyroResetRaf = 0
 
   // 重置朝向补间（可被拖动/二次重置中断）
   private resetting = false
@@ -143,14 +166,25 @@ export class PanoramaViewer {
 
   // —— 视角控制 ——
   resetView(): void {
-    if (this.gyroOn) this.setGyro(false) // 先切回触摸（会同步当前朝向到 yaw/pitch）
+    if (this.gyroOn) {
+      // 陀螺仪模式下归零：缓动回设备正前方的默认朝向，不退出陀螺仪
+      this.recenterGyro()
+      return
+    }
     this.animateViewTo(DEFAULT_YAW, 0)
   }
 
   // 切换照片时重置视角：新照片从默认朝向+缩放进入。
-  // 陀螺仪开启时不重置。
+  // 陀螺仪模式下改为重算归零偏移，从设备当前朝向进入。
   resetForNewPhoto(): void {
-    if (this.gyroOn) return
+    if (this.gyroOn) {
+      this.gyroOffset.copy(this.defaultViewQuat).multiply(this.gyroQ0.copy(this.deviceQuat).invert())
+      this.camera.fov = DEFAULT_FOV
+      this.camera.updateProjectionMatrix()
+      this.applyGyroView()
+      this.dirty = true
+      return
+    }
     if (this.resetting) {
       cancelAnimationFrame(this.resetRaf)
       this.resetting = false
@@ -199,18 +233,36 @@ export class PanoramaViewer {
     this.dirty = true
   }
 
-  // 陀螺仪开关；iOS 13+ 需用户手势授权，失败静默回退触摸。
+  // 陀螺仪开关；iOS 13+ 需用户手势授权。开启后若收不到传感器事件
+  // （桌面浏览器有构造器无传感器）自动回退触摸并报失败。
   async toggleGyro(): Promise<boolean> {
     if (this.gyroOn) {
       this.setGyro(false)
       return false
     }
     const ok = await this.requestGyroPermission()
-    if (ok) {
-      this.setGyro(true)
-      return true
+    if (!ok) return false
+    this.setGyro(true)
+    const got = await this.waitForFirstGyroEvent(800)
+    if (!got) {
+      this.setGyro(false)
+      return false
     }
-    return false
+    return true
+  }
+
+  private waitForFirstGyroEvent(timeoutMs: number): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const timer = window.setTimeout(() => {
+        this.firstGyroResolve = null
+        resolve(false)
+      }, timeoutMs)
+      this.firstGyroResolve = () => {
+        window.clearTimeout(timer)
+        this.firstGyroResolve = null
+        resolve(true)
+      }
+    })
   }
 
   private requestGyroPermission(): Promise<boolean> {
@@ -220,8 +272,8 @@ export class PanoramaViewer {
         .then((state: string) => state === 'granted')
         .catch(() => false)
     }
-    // 非 iOS：直接可用（或浏览器不支持时返回 false）
-    return Promise.resolve('DeviceOrientationEvent' in window)
+    // Android 等平台无需授权，存在构造器即尝试
+    return Promise.resolve(true)
   }
 
   private setGyro(on: boolean): void {
@@ -231,8 +283,10 @@ export class PanoramaViewer {
       this.yaw = this.camera.rotation.y
       this.pitch = this.camera.rotation.x
       window.removeEventListener('deviceorientation', this.gyroHandler)
+      this.firstGyroResolve = null
       this.dirty = true
     } else {
+      this.needsBaseline = true
       window.addEventListener('deviceorientation', this.gyroHandler)
       this.dirty = true
     }
@@ -241,11 +295,49 @@ export class PanoramaViewer {
   private gyroHandler = (e: DeviceOrientationEvent): void => {
     if (e.alpha == null || e.beta == null || e.gamma == null) return
     const rad = Math.PI / 180
-    // 标准全景映射：alpha=水平朝向，beta=俯仰，gamma=倾斜
-    this.camera.rotation.y = e.alpha * rad
-    this.camera.rotation.x = e.beta * rad
-    this.camera.rotation.z = -e.gamma * rad
-    this.dirty = true
+    // iOS Safari 的 screen.orientation.angle 有恒为 0 的 bug，横屏补偿会丢；
+    // window.orientation 在 iOS 上一直可靠，故优先取它（Android 已移除该属性，自然落到标准接口）
+    const screenAngle = (window as unknown as { orientation?: number }).orientation ?? screen.orientation?.angle ?? 0
+    const orient = screenAngle * rad
+    this.targetQuat.setFromEuler(this.gyroEuler.set(e.beta * rad, e.alpha * rad, -e.gamma * rad, 'YXZ'))
+    this.targetQuat.multiply(GYRO_Q1).multiply(this.gyroQ0.setFromAxisAngle(GYRO_ZEE, -orient))
+    if (this.needsBaseline) {
+      // 首个事件：以当前视角为基准计算偏移，开启瞬间画面不跳变
+      this.needsBaseline = false
+      this.deviceQuat.copy(this.targetQuat)
+      this.gyroOffset.copy(this.camera.quaternion).multiply(this.gyroQ0.copy(this.targetQuat).invert())
+      this.applyGyroView()
+      this.dirty = true
+    }
+    this.firstGyroResolve?.()
+  }
+
+  private applyGyroView(): void {
+    // 偏移乘在世界帧（左乘）：物理俯仰/平摇永远对应视角的纯俯仰/平摇，
+    // 不受偏移内容影响；右乘会把旋转轴扭成斜轴（表现为画面滚动）
+    this.camera.quaternion.copy(this.gyroOffset).multiply(this.deviceQuat)
+  }
+
+  // 陀螺仪归零补间：偏移缓动到"设备正前方 = 默认朝向"，同时 FOV 复位
+  private recenterGyro(): void {
+    if (this.gyroResetting) cancelAnimationFrame(this.gyroResetRaf)
+    const from = this.gyroOffset.clone()
+    const to = this.defaultViewQuat.clone().multiply(this.deviceQuat.clone().invert())
+    const fromFov = this.camera.fov
+    const start = performance.now()
+    this.gyroResetting = true
+    const step = (): void => {
+      const t = Math.min(1, (performance.now() - start) / 450)
+      const e = 1 - Math.pow(1 - t, 3)
+      this.gyroOffset.slerpQuaternions(from, to, e)
+      this.camera.fov = fromFov + (DEFAULT_FOV - fromFov) * e
+      this.camera.updateProjectionMatrix()
+      this.applyGyroView()
+      this.dirty = true
+      if (t < 1 && this.gyroResetting) this.gyroResetRaf = requestAnimationFrame(step)
+      else this.gyroResetting = false
+    }
+    step()
   }
 
   private onPointerDown = (e: PointerEvent): void => {
@@ -345,6 +437,12 @@ export class PanoramaViewer {
 
   private loop = (): void => {
     this.rafId = requestAnimationFrame(this.loop)
+    // 陀螺仪平滑放在渲染循环里逐帧追赶目标朝向：跟手且不受事件频率抖动影响
+    if (this.gyroOn && !this.deviceQuat.equals(this.targetQuat)) {
+      this.deviceQuat.slerp(this.targetQuat, 0.4)
+      this.applyGyroView()
+      this.dirty = true
+    }
     if (this.dirty) {
       this.renderer.render(this.scene, this.camera)
       this.dirty = false
