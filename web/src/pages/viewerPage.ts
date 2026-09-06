@@ -13,6 +13,11 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   let albumId = Number(new URLSearchParams(location.search).get('album')) || 0
   let photo: Photo
   let photos: Photo[]
+  let viewerCfg = { autoRotate: false, planetIntro: false }
+  try {
+    const settings = await api.settings()
+    viewerCfg = { autoRotate: settings.viewer_auto_rotate, planetIntro: settings.viewer_planet_intro }
+  } catch { /* 设置读取失败按默认体验 */ }
   try {
     photo = await api.photo(photoId)
     if (!albumId) albumId = photo.album_ids[0] ?? 0
@@ -73,7 +78,7 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
   renderPage(root)
 
   // 先挂载再创建查看器
-  const viewer = new PanoramaViewer(root, canvas)
+  const viewer = new PanoramaViewer(root, canvas, viewerCfg)
 
   let enterResetTimer = 0
   function showEnter(): void {
@@ -96,8 +101,12 @@ export async function renderViewer(photoIdStr: string): Promise<void> {
     showEnter()
     window.clearTimeout(hideTimer)
     return viewer.load(sha).finally(() => {
-      // 黑屏过渡约 280ms + 遮罩自身淡入淡出，加载完成后延迟隐藏
-      hideTimer = window.setTimeout(hideEnter, 650)
+      // 黑屏过渡约 280ms + 遮罩自身淡入淡出，加载完成后延迟隐藏；
+      // 小行星开场与遮罩散开同步启动，避免动画在遮罩后面播完
+      hideTimer = window.setTimeout(() => {
+        hideEnter()
+        viewer.playIntro()
+      }, 650)
     })
   }
 

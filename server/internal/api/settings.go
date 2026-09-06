@@ -57,7 +57,15 @@ func (s *Server) settingsJSON() map[string]any {
 			mt = cfg
 		}
 	}
-	return map[string]any{"site_title": title, "has_favicon": hasFav == "1", "map_tile": mt}
+	autoRotate, _ := store.GetSetting(s.db, "viewer_auto_rotate")
+	planetIntro, _ := store.GetSetting(s.db, "viewer_planet_intro")
+	return map[string]any{
+		"site_title":          title,
+		"has_favicon":         hasFav == "1",
+		"map_tile":            mt,
+		"viewer_auto_rotate":  autoRotate == "1",
+		"viewer_planet_intro": planetIntro == "1",
+	}
 }
 
 // handleGetPublicSettings 公共设置（无鉴权）：前端据此设标签页标题/图标/地图源。
@@ -68,14 +76,16 @@ func (s *Server) handleGetPublicSettings(w http.ResponseWriter, _ *http.Request)
 // handleAdminPutSettings 后台保存站点标题与地图瓦片源（两者可单独或同时更新）。
 func (s *Server) handleAdminPutSettings(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		SiteTitle string         `json:"site_title"`
-		MapTile   *mapTileConfig `json:"map_tile"`
+		SiteTitle   string         `json:"site_title"`
+		MapTile     *mapTileConfig `json:"map_tile"`
+		AutoRotate  *bool          `json:"viewer_auto_rotate"`
+		PlanetIntro *bool          `json:"viewer_planet_intro"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "请求格式错误")
 		return
 	}
-	if req.SiteTitle == "" && req.MapTile == nil {
+	if req.SiteTitle == "" && req.MapTile == nil && req.AutoRotate == nil && req.PlanetIntro == nil {
 		writeError(w, http.StatusBadRequest, "没有要保存的内容")
 		return
 	}
@@ -92,6 +102,26 @@ func (s *Server) handleAdminPutSettings(w http.ResponseWriter, r *http.Request) 
 		}
 		raw, _ := json.Marshal(req.MapTile)
 		if err := store.SetSetting(s.db, "map_tile", string(raw)); err != nil {
+			s.internalError(w, err)
+			return
+		}
+	}
+	if req.AutoRotate != nil {
+		v := "0"
+		if *req.AutoRotate {
+			v = "1"
+		}
+		if err := store.SetSetting(s.db, "viewer_auto_rotate", v); err != nil {
+			s.internalError(w, err)
+			return
+		}
+	}
+	if req.PlanetIntro != nil {
+		v := "0"
+		if *req.PlanetIntro {
+			v = "1"
+		}
+		if err := store.SetSetting(s.db, "viewer_planet_intro", v); err != nil {
 			s.internalError(w, err)
 			return
 		}

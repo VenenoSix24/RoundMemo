@@ -21,6 +21,7 @@ export async function renderAdminSettings(main: HTMLElement): Promise<void> {
     h('div', { class: 'settings-stack' }, [
       accountSection(me.username),
       siteSection(settings.site_title, settings.has_favicon),
+      viewerSection(settings.viewer_auto_rotate, settings.viewer_planet_intro),
       mapTileSection(settings.map_tile),
       sectionCard('导入照片', renderImportSection),
       sectionCard('在线会话', renderSessionsSection),
@@ -125,6 +126,47 @@ function siteSection(siteTitle: string, hasFavicon: boolean): HTMLElement {
         favStatus,
       ]),
     ]),
+  ])
+}
+
+// 查看器行为：自动旋转在照片加载完后缓慢自转；小行星开场从星球视角展开到默认视角。
+// 两者是站点级体验开关，对访客生效。
+function viewerSection(autoRotate: boolean, planetIntro: boolean): HTMLElement {
+  const autoChk = h('input', { type: 'checkbox', class: 'admin-checkbox viewer-check-box' }) as HTMLInputElement
+  autoChk.checked = autoRotate
+  const introChk = h('input', { type: 'checkbox', class: 'admin-checkbox viewer-check-box' }) as HTMLInputElement
+  introChk.checked = planetIntro
+  const err = h('p', { class: 'admin-form-err', role: 'alert' }, '')
+
+  async function save(): Promise<void> {
+    try {
+      await adminApi.putViewerSettings(autoChk.checked, introChk.checked)
+      err.textContent = ''
+      toast('查看器设置已保存')
+    } catch (e) {
+      err.textContent = e instanceof Error ? e.message : '保存失败'
+    }
+  }
+
+  return h('section', { class: 'glass admin-card' }, [
+    h('h3', { class: 'admin-card-title' }, '查看器'),
+    h('p', { class: 'admin-section-desc text-muted' }, '全景查看器的访客端体验。'),
+    h('label', { class: 'viewer-check-row' }, [
+      autoChk,
+      h('span', { class: 'viewer-check-text' }, [
+        h('strong', {}, '自动旋转'),
+        h('span', { class: 'viewer-check-desc text-muted' }, '照片加载完后缓慢自转，用户拖动时暂停'),
+      ]),
+    ]),
+    h('label', { class: 'viewer-check-row' }, [
+      introChk,
+      h('span', { class: 'viewer-check-text' }, [
+        h('strong', {}, '小行星开场'),
+        h('span', { class: 'viewer-check-desc text-muted' }, '打开照片时从星球视角展开为正常视角'),
+      ]),
+    ]),
+    err,
+    h('button', { class: 'btn btn-primary', type: 'button', onClick: save }, '保存查看器设置'),
   ])
 }
 

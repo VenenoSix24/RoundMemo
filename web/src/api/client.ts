@@ -50,6 +50,8 @@ export interface PublicSettings {
   site_title: string
   has_favicon: boolean
   map_tile: MapTileConfig
+  viewer_auto_rotate: boolean
+  viewer_planet_intro: boolean
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
